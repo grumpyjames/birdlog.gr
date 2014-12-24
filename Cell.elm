@@ -3,19 +3,35 @@ import Mouse
 import Window
 
 main : Signal Element
-main = lift3 clg Window.dimensions movement (constant hubris)
+main = lift2 clg Window.dimensions movement
 
-clg : (Int, Int) -> (Int, Int) -> [Element] -> Element
-clg (winx, winy) (xshift, yshift) es = collage winx winy (foldx snd (step xshift yshift) ((-1,-1), []) es)
+clg : (Int, Int) -> (Int, Int) -> Element
+clg (winx, winy) (xshift, yshift) = 
+    let grid = tiles 3 3
+        forms = foldl (step xshift yshift) [] grid
+    in collage winx winy forms
 
-foldx : (b -> c) -> (a -> b -> b) -> b -> [a] -> c
-foldx f step init xs = f <| foldl step init xs
-
-step : Int -> Int -> Element -> ((Int, Int), [Form]) -> ((Int, Int), [Form])
-step xoff yoff e ((x, y), fs) = 
+step : Int -> Int -> (Int, Int) -> [Form] -> [Form]
+step xoff yoff (x, y) fs = 
     let xpos = (toFloat xoff) + (toFloat (x * 200))
         ypos = (toFloat yoff) + (toFloat (y * 200))
-    in ((x+1, y+1), fs ++ [move (xpos, ypos) <| toForm e])
+        content = (show x) ++ "," ++ (show y)
+    in fs ++ [move (xpos, ypos) <| toForm (tile content)]
+
+tile : String -> Element
+tile s = color grey (container 200 200 middle (plainText s))
+
+tiles : Int -> Int -> [(Int, Int)]
+tiles xc yc = 
+    let xcoords = [0..(xc - 1)]
+        ycoords = [0..(yc - 1)]
+    in cartesianProduct xcoords ycoords
+
+cartesianProduct : [a] -> [b] -> [(a, b)]
+cartesianProduct xs ys = 
+    case xs of
+      z :: zs -> (cartesianProduct zs ys) ++ map ((,) z) ys
+      [] -> []
 
 data Direction = Up | Down | Left | Right | None
 
