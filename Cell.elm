@@ -8,23 +8,23 @@ main = lift2 clg Window.dimensions movement
 clg : (Int, Int) -> (Int, Int) -> Element
 clg (winx, winy) (xshift, yshift) = 
     let grid = tiles 3 3
-        forms = foldl (step xshift yshift) [] grid
+        forms = map (step xshift yshift) grid
     in collage winx winy forms
 
-step : Int -> Int -> (Int, Int) -> [Form] -> [Form]
-step xoff yoff (x, y) fs = 
+step : Int -> Int -> (Int, Int) -> Form
+step xoff yoff (x, y) = 
     let xpos = (toFloat xoff) + (toFloat (x * 200))
         ypos = (toFloat yoff) + (toFloat (y * 200))
         content = (show x) ++ "," ++ (show y)
-    in fs ++ [move (xpos, ypos) <| toForm (tile content)]
+    in move (xpos, ypos) <| toForm (tile content)
 
 tile : String -> Element
 tile s = color grey (container 200 200 middle (plainText s))
 
 tiles : Int -> Int -> [(Int, Int)]
 tiles xc yc = 
-    let xcoords = [0..(xc - 1)]
-        ycoords = [0..(yc - 1)]
+    let xcoords = [-1..(xc - 2)]
+        ycoords = [-1..(yc - 2)]
     in cartesianProduct xcoords ycoords
 
 cartesianProduct : [a] -> [b] -> [(a, b)]
