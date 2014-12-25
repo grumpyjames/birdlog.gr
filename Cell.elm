@@ -5,24 +5,43 @@ import Window
 main : Signal Element
 main = lift2 clg Window.dimensions movement
 
+type Tile = { x: Int, y: Int, xpos: Float, ypos: Float}
+
 clg : (Int, Int) -> (Int, Int) -> Element
 clg (winx, winy) (xshift, yshift) = 
-    let grid = tiles 3 3
-        forms = map (step xshift yshift) grid
-    in collage winx winy forms
+    let grid = coords 3 3
+        tiles = map (step xshift yshift) grid
+    in collage winx winy <| map ttf <| map wrap tiles
 
-step : Int -> Int -> (Int, Int) -> Form
+wrap : Tile -> Tile
+wrap t = wrapY (wrapX t)
+
+wrapX : Tile -> Tile
+wrapX t = if t.xpos > 400 
+          then Tile (t.x - 4) t.y (t.xpos - 600) t.ypos
+          else t
+
+wrapY : Tile -> Tile
+wrapY t = if t.ypos > 400
+          then Tile t.x (t.y - 4) t.xpos (t.ypos - 600)
+          else t
+
+ttf : Tile -> Form
+ttf t = 
+    let content = show t.x ++ "," ++ show t.y ++ "\n" ++ show t.xpos ++ "," ++ show t.ypos
+    in move (t.xpos, t.ypos) <| toForm <| tileEl content
+
+step : Int -> Int -> (Int, Int) -> Tile
 step xoff yoff (x, y) = 
     let xpos = (toFloat xoff) + (toFloat (x * 200))
         ypos = (toFloat yoff) + (toFloat (y * 200))
-        content = (show x) ++ "," ++ (show y)
-    in move (xpos, ypos) <| toForm (tile content)
+    in Tile x y xpos ypos
 
-tile : String -> Element
-tile s = color grey (container 200 200 middle (plainText s))
+tileEl : String -> Element
+tileEl s = color grey (container 200 200 middle (plainText s))
 
-tiles : Int -> Int -> [(Int, Int)]
-tiles xc yc = 
+coords : Int -> Int -> [(Int, Int)]
+coords xc yc = 
     let xcoords = [-1..(xc - 2)]
         ycoords = [-1..(yc - 2)]
     in cartesianProduct xcoords ycoords
