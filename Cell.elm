@@ -14,19 +14,16 @@ clg (winx, winy) (xshift, yshift) =
     in collage winx winy <| map ttf <| map wrap tiles
 
 wrap : Tile -> Tile
-wrap t = wrapY (wrapX t)
-
-wrapX : Tile -> Tile
-wrapX t = 
-    let normalisedXPos = t.xpos + (toFloat 200)
-        xWrapCount = truncate <| normalisedXPos / 600
-    in Tile (t.x - (3 * xWrapCount)) t.y (t.xpos - (600 * (toFloat xWrapCount))) t.ypos
-
-wrapY : Tile -> Tile
-wrapY t = 
-    let normalisedYPos = t.ypos + (toFloat 200)
-        yWrapCount = truncate <| normalisedYPos / 600
-    in Tile t.x (t.y - (3 * yWrapCount)) t.xpos (t.ypos - (600 * (toFloat yWrapCount)))
+wrap t = 
+    let sgn a = if a > 0 then 1 else -1
+        f200 = toFloat 200
+        normalise pos = pos + (f200 * (sgn pos))
+        wraps pos = truncate <| (normalise pos) / 600
+        newPos wraps oldPos = oldPos - (600 * (toFloat wraps))
+        newCoord wraps oldCoord = oldCoord - (3 * wraps)
+        xWraps = wraps t.xpos
+        yWraps = wraps t.ypos
+    in Tile (newCoord xWraps t.x) (newCoord yWraps t.y) (newPos xWraps t.xpos) (newPos yWraps t.ypos)
 
 ttf : Tile -> Form
 ttf t = 
