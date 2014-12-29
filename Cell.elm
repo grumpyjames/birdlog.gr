@@ -17,14 +17,16 @@ wrap : Tile -> Tile
 wrap t = wrapY (wrapX t)
 
 wrapX : Tile -> Tile
-wrapX t = if t.xpos > 400 
-          then Tile (t.x - 4) t.y (t.xpos - 600) t.ypos
-          else t
+wrapX t = 
+    let normalisedXPos = t.xpos + (toFloat 200)
+        xWrapCount = truncate <| normalisedXPos / 600
+    in Tile (t.x - (3 * xWrapCount)) t.y (t.xpos - (600 * (toFloat xWrapCount))) t.ypos
 
 wrapY : Tile -> Tile
-wrapY t = if t.ypos > 400
-          then Tile t.x (t.y - 4) t.xpos (t.ypos - 600)
-          else t
+wrapY t = 
+    let normalisedYPos = t.ypos + (toFloat 200)
+        yWrapCount = truncate <| normalisedYPos / 600
+    in Tile t.x (t.y - (3 * yWrapCount)) t.xpos (t.ypos - (600 * (toFloat yWrapCount)))
 
 ttf : Tile -> Form
 ttf t = 
