@@ -9,16 +9,16 @@ type Tile = { x: Int, y: Int, xpos: Float, ypos: Float}
 
 clg : (Int, Int) -> (Int, Int) -> Element
 clg (winx, winy) (xshift, yshift) = 
-    let grid = coords 3 3
-        tiles = map (step xshift yshift) grid
-    in collage winx winy <| map ttf <| map wrap tiles
-
-wrap : Tile -> Tile
-wrap t = 
-    let sgn a = if a > 0 then 1 else -1
+    let count = 3
         size = 200
-        count = 3
-        d = size * count
+        grid = coords count count
+        tiles = map (step size xshift yshift) grid
+    in collage winx winy <| map (ttf size) <| map (wrap count size) tiles
+
+wrap : Int -> Int -> Tile -> Tile
+wrap count size t = 
+    let sgn a = if a > 0 then 1 else -1
+        d = toFloat (size * count)
         normalise pos = pos + toFloat (size * (sgn pos))
         wraps pos = truncate <| (normalise pos) / d
         newPos wraps oldPos = oldPos - (d * (toFloat wraps))
@@ -27,19 +27,19 @@ wrap t =
         yWraps = wraps t.ypos
     in Tile (newCoord xWraps t.x) (newCoord yWraps t.y) (newPos xWraps t.xpos) (newPos yWraps t.ypos)
 
-ttf : Tile -> Form
-ttf t = 
+ttf : Int -> Tile -> Form
+ttf size t = 
     let content = show t.x ++ "," ++ show t.y ++ "\n" ++ show t.xpos ++ "," ++ show t.ypos
-    in move (t.xpos, t.ypos) <| toForm <| tileEl content
+    in move (t.xpos, t.ypos) <| toForm <| tileEl size content
 
-step : Int -> Int -> (Int, Int) -> Tile
-step xoff yoff (x, y) = 
-    let xpos = (toFloat xoff) + (toFloat (x * 200))
-        ypos = (toFloat yoff) + (toFloat (y * 200))
+step : Int -> Int -> Int -> (Int, Int) -> Tile
+step size xoff yoff (x, y) = 
+    let xpos = (toFloat xoff) + (toFloat (x * size))
+        ypos = (toFloat yoff) + (toFloat (y * size))
     in Tile x y xpos ypos
 
-tileEl : String -> Element
-tileEl s = color grey (container 200 200 middle (plainText s))
+tileEl : Int -> String -> Element
+tileEl sz s = color grey (container sz sz middle (plainText s))
 
 coords : Int -> Int -> [(Int, Int)]
 coords xc yc = 
