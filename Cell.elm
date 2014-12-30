@@ -16,11 +16,13 @@ clg (winx, winy) (xshift, yshift) =
 wrap : Tile -> Tile
 wrap t = 
     let sgn a = if a > 0 then 1 else -1
-        f200 = toFloat 200
-        normalise pos = pos + (f200 * (sgn pos))
-        wraps pos = truncate <| (normalise pos) / 600
-        newPos wraps oldPos = oldPos - (600 * (toFloat wraps))
-        newCoord wraps oldCoord = oldCoord - (3 * wraps)
+        size = 200
+        count = 3
+        d = size * count
+        normalise pos = pos + toFloat (size * (sgn pos))
+        wraps pos = truncate <| (normalise pos) / d
+        newPos wraps oldPos = oldPos - (d * (toFloat wraps))
+        newCoord wraps oldCoord = oldCoord - (count * wraps)
         xWraps = wraps t.xpos
         yWraps = wraps t.ypos
     in Tile (newCoord xWraps t.x) (newCoord yWraps t.y) (newPos xWraps t.xpos) (newPos yWraps t.ypos)
