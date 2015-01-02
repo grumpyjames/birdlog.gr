@@ -49,11 +49,14 @@ tileEl sz s = color grey (container sz sz middle (plainText s))
 
 coords : Int -> Int -> List (Int, Int)
 coords xc yc = 
-    let zeroth = ((xc - 1) // 2)
-        min = 0 - zeroth
-        max = zeroth
-        xcoords = [min..max]
-        ycoords = [min..max]
+    let xzeroth = ((xc - 1) // 2)
+        minx = 0 - xzeroth
+        maxx = xzeroth
+        yzeroth = ((yc - 1) // 2)
+        miny = 0 - yzeroth
+        maxy = yzeroth
+        xcoords = [minx..maxx]
+        ycoords = [miny..maxy]
     in cartesianProduct xcoords ycoords
 
 cartesianProduct : List a -> List b -> List (a, b)
