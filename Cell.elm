@@ -14,38 +14,35 @@ main = S.map2 clg Window.dimensions movement
 type alias Tile = { x: Int, y: Int, xpos: Float, ypos: Float}
 
 clg : (Int, Int) -> (Int, Int) -> Element
-clg (winx, winy) (xshift, yshift) = 
-    let count = 3
-        size = 200
-        grid = coords count count
-        tiles = L.map (step size xshift yshift) grid
-    in collage winx winy <| L.map (ttf size) <| L.map (wrap count size) tiles
+clg (winx, winy) shift = 
+    let size = 200
+        grid = coords 9 7
+        tiles = L.map (step size (offset size shift)) grid
+    in collage winx winy <| L.map (ttf size) <| tiles
 
-wrap : Int -> Int -> Tile -> Tile
-wrap count size t = 
-    let sgn a = if a > 0 then 1 else -1
-        d = toFloat (size * count)
-        normalise pos = pos + toFloat (size * (sgn pos))
-        wraps pos = truncate <| (normalise pos) / d
-        newPos wraps oldPos = oldPos - (d * (toFloat wraps))
-        newCoord wraps oldCoord = oldCoord - (count * wraps)
-        xWraps = wraps t.xpos
-        yWraps = wraps t.ypos
-    in Tile (newCoord xWraps t.x) (newCoord yWraps t.y) (newPos xWraps t.xpos) (newPos yWraps t.ypos)
+sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
 ttf : Int -> Tile -> Form
 ttf size t = 
     let content = toString t.x ++ "," ++ toString t.y ++ "\n" ++ toString t.xpos ++ "," ++ toString t.ypos
     in move (t.xpos, t.ypos) <| toForm <| tileEl size content
 
-step : Int -> Int -> Int -> (Int, Int) -> Tile
-step size xoff yoff (x, y) = 
-    let xpos = (toFloat xoff) + (toFloat (x * size))
-        ypos = (toFloat yoff) + (toFloat (y * size))
-    in Tile x y xpos ypos
+step : Int -> Tile -> (Int, Int) -> Tile
+step size tileOff (x, y) = 
+    let xpos = tileOff.xpos + (toFloat (x * size))
+        ypos = tileOff.ypos + (toFloat (y * size))
+        newX = tileOff.x + x
+        newY = tileOff.y + y
+    in Tile newX newY xpos ypos
 
 tileEl : Int -> String -> Element
 tileEl sz s = color grey (container sz sz middle (plainText s))
+
+offset : Int -> (Int, Int) -> Tile
+offset tileSize (x, y)  = 
+    let wraps t = (0 - t) // tileSize
+        pos t = toFloat <| t % tileSize
+    in Tile (wraps x) (wraps y) (pos x) (pos y) 
 
 coords : Int -> Int -> List (Int, Int)
 coords xc yc = 
