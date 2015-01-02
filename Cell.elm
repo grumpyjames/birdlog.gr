@@ -1,19 +1,25 @@
+import Color (grey)
+import Graphics.Collage (Form, collage, move, toForm)
+import Graphics.Element (Element, color, container, middle)
 import Keyboard
+import List as L
 import Mouse
+import Signal as S
+import Text (plainText)
 import Window
 
 main : Signal Element
-main = lift2 clg Window.dimensions movement
+main = S.map2 clg Window.dimensions movement
 
-type Tile = { x: Int, y: Int, xpos: Float, ypos: Float}
+type alias Tile = { x: Int, y: Int, xpos: Float, ypos: Float}
 
 clg : (Int, Int) -> (Int, Int) -> Element
 clg (winx, winy) (xshift, yshift) = 
     let count = 3
         size = 200
         grid = coords count count
-        tiles = map (step size xshift yshift) grid
-    in collage winx winy <| map (ttf size) <| map (wrap count size) tiles
+        tiles = L.map (step size xshift yshift) grid
+    in collage winx winy <| L.map (ttf size) <| L.map (wrap count size) tiles
 
 wrap : Int -> Int -> Tile -> Tile
 wrap count size t = 
@@ -29,7 +35,7 @@ wrap count size t =
 
 ttf : Int -> Tile -> Form
 ttf size t = 
-    let content = show t.x ++ "," ++ show t.y ++ "\n" ++ show t.xpos ++ "," ++ show t.ypos
+    let content = toString t.x ++ "," ++ toString t.y ++ "\n" ++ toString t.xpos ++ "," ++ toString t.ypos
     in move (t.xpos, t.ypos) <| toForm <| tileEl size content
 
 step : Int -> Int -> Int -> (Int, Int) -> Tile
@@ -41,36 +47,39 @@ step size xoff yoff (x, y) =
 tileEl : Int -> String -> Element
 tileEl sz s = color grey (container sz sz middle (plainText s))
 
-coords : Int -> Int -> [(Int, Int)]
+coords : Int -> Int -> List (Int, Int)
 coords xc yc = 
-    let xcoords = [-1..(xc - 2)]
-        ycoords = [-1..(yc - 2)]
+    let zeroth = ((xc - 1) // 2)
+        min = 0 - zeroth
+        max = zeroth
+        xcoords = [min..max]
+        ycoords = [min..max]
     in cartesianProduct xcoords ycoords
 
-cartesianProduct : [a] -> [b] -> [(a, b)]
+cartesianProduct : List a -> List b -> List (a, b)
 cartesianProduct xs ys = 
     case xs of
-      z :: zs -> (cartesianProduct zs ys) ++ map ((,) z) ys
+      z :: zs -> (cartesianProduct zs ys) ++ L.map ((,) z) ys
       [] -> []
 
-data Direction = Up | Down | Left | Right | None
+type Direction = Up | Down | Left | Right | None
 
 add : {x: Int, y: Int} -> (Int, Int) -> (Int, Int)
 add w (c, d) = (w.x + c, w.y + d)
 
 displacement : Signal {x: Int, y: Int} -> Signal (Int, Int)
-displacement = foldp add (-1, -1)
+displacement = S.foldp add (-1, -1)
 
-hubris : [Element]
-hubris = repeat 3 <| color grey (container 200 200 middle (plainText "Try this with html!"))
+hubris : List Element
+hubris = L.repeat 3 <| color grey (container 200 200 middle (plainText "Try this with html!"))
 
 -- simplified drags
 
 movement : Signal (Int, Int)
-movement = let rawSignal = foldp step' (MouseUp, (0, 0)) pnWhenDown
-           in lift snd <| rawSignal
+movement = let rawSignal = S.foldp step' (MouseUp, (0, 0)) pnWhenDown
+           in S.map snd <| rawSignal
 
-data AccSt = MouseDown (Int, Int)
+type AccSt = MouseDown (Int, Int)
            | MouseUp
 
 step' : (Bool, (Int, Int)) -> (AccSt, (Int, Int)) -> (AccSt, (Int, Int))
@@ -83,4 +92,4 @@ step' (down, (x2, y2)) (acc, (sumx, sumy)) =
       (MouseDown (lastx, lasty), False) -> (MouseUp, oldSum)                                  
 
 pnWhenDown : Signal (Bool, (Int, Int))
-pnWhenDown = lift2 (,) Mouse.isDown Mouse.position
+pnWhenDown = S.map2 (,) Mouse.isDown Mouse.position
