@@ -62,14 +62,6 @@ cartesianProduct xs ys =
       z :: zs -> (cartesianProduct zs ys) ++ L.map ((,) z) ys
       [] -> []
 
-type Direction = Up | Down | Left | Right | None
-
-add : {x: Int, y: Int} -> (Int, Int) -> (Int, Int)
-add w (c, d) = (w.x + c, w.y + d)
-
-displacement : Signal {x: Int, y: Int} -> Signal (Int, Int)
-displacement = S.foldp add (-1, -1)
-
 -- simplified drags
 
 movement : Signal (Int, Int)
