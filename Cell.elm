@@ -70,9 +70,6 @@ add w (c, d) = (w.x + c, w.y + d)
 displacement : Signal {x: Int, y: Int} -> Signal (Int, Int)
 displacement = S.foldp add (-1, -1)
 
-hubris : List Element
-hubris = L.repeat 3 <| color grey (container 200 200 middle (plainText "Try this with html!"))
-
 -- simplified drags
 
 movement : Signal (Int, Int)
