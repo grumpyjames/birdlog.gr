@@ -1,7 +1,7 @@
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
-import Graphics.Element (Element, color, container, middle)
-import Keyboard
+import Graphics.Element (Element, color, container, image, middle)
+import Keyboard (arrows)
 import List as L
 import Mouse
 import Signal as S
@@ -15,7 +15,7 @@ type alias Tile = { point: (Int, Int), position: (Float, Float) }
 
 clg : (Int, Int) -> (Int, Int) -> Element
 clg (winx, winy) shift = 
-    let size = 200
+    let size = 256
         grid = coords 9 7
         tiles = L.map (step size (offset size shift)) grid
     in collage winx winy <| L.map (ttf size) <| tiles
@@ -25,7 +25,7 @@ sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0)
 ttf : Int -> Tile -> Form
 ttf size t = 
     let content = toString t.point ++ "\n" ++ toString t.position
-    in move t.position <| toForm <| tileEl size content
+    in move t.position <| toForm <| tileEl size t content
 
 mapT : (a -> b) -> (a, a) -> (b, b)
 mapT f (a1, a2) = (f a1, f a2)
@@ -39,8 +39,14 @@ step size offsetTile baseCoordinate =
         addT = mergeT (+)
     in Tile (addT offsetTile.point baseCoordinate) (addT offsetTile.position basePosition) 
 
-tileEl : Int -> String -> Element
-tileEl sz s = color grey (container sz sz middle (plainText s))
+osmUrl : Int -> (Int, Int) -> String
+osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+5)) ++ "/" ++ (toString ((1-y)+5)) ++ ".png"
+
+osmTile : Int -> (Int, Int) -> Element
+osmTile size point = image size size <| osmUrl 5 point  
+
+tileEl : Int -> Tile -> String -> Element
+tileEl sz tile _ = color grey (container sz sz middle (osmTile sz tile.point))
 
 offset : Int -> (Int, Int) -> Tile
 offset tileSize (x, y)  = 
@@ -60,21 +66,27 @@ cartesianProduct xs ys =
       [] -> []
 
 -- simplified drags
-movement : Signal (Int, Int)
-movement = let rawSignal = S.foldp step' (MouseUp, (0, 0)) pnWhenDown
-           in S.map snd <| rawSignal
+movement = S.map2 (mergeT (+)) keyMovement dragMovement
 
-type AccSt = MouseDown (Int, Int)
-           | MouseUp
+dragMovement : Signal (Int, Int)
+dragMovement = let rawSignal = S.foldp step' (MouseUp, (0, 0)) pnWhenDown
+               in S.map snd <| rawSignal
 
-step' : (Bool, (Int, Int)) -> (AccSt, (Int, Int)) -> (AccSt, (Int, Int))
-step' (down, (x2, y2)) (acc, (sumx, sumy)) =
-    let oldSum = (sumx, sumy)
-    in case (acc, down) of
-      (MouseUp, True) -> (MouseDown (x2, y2), oldSum)
-      (MouseUp, False) -> (MouseUp, oldSum)
-      (MouseDown (lastx, lasty), True) -> (MouseDown (x2, y2), (sumx - x2 + lastx, sumy + y2 - lasty))
-      (MouseDown (lastx, lasty), False) -> (MouseUp, oldSum)                                  
+keyMovement : Signal (Int, Int)
+keyMovement = let toTuple a = (a.x, a.y)
+                  step = mergeT (+)
+              in S.map (mapT ((*) (-256))) <| S.foldp (mergeT (+)) (0, 0) <| S.map toTuple arrows
+
+type DragState = MouseDown (Int, Int)
+               | MouseUp
+
+step' : (Bool, (Int, Int)) -> (DragState, (Int, Int)) -> (DragState, (Int, Int))
+step' (down, (x2, y2)) (lastState, (sumx, sumy)) =
+    let newState = if down then MouseDown (x2, y2) else MouseUp
+        newSum = case lastState of
+                   MouseUp -> (sumx, sumy)
+                   MouseDown (lastx, lasty) -> (sumx - x2 + lastx, sumy + y2 - lasty)
+    in (newState, newSum)
 
 pnWhenDown : Signal (Bool, (Int, Int))
 pnWhenDown = S.map2 (,) Mouse.isDown Mouse.position
