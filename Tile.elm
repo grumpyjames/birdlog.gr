@@ -1,6 +1,6 @@
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
-import Graphics.Element (Element, color, container, image, middle)
+import Graphics.Element (Element, color, container, image, middle, layers, spacer)
 import Keyboard (arrows)
 import List as L
 import Mouse
@@ -9,9 +9,12 @@ import Text (plainText)
 import Window
 
 main : Signal Element
-main = S.map2 clg Window.dimensions movement
+main = S.map2 render Window.dimensions movement
 
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
+
+render : (Int, Int) -> (Int, Int) -> Element
+render (winX, winY) moves = layers <| [ clg (winX, winY) moves, spacer winX winY ] 
 
 clg : (Int, Int) -> (Int, Int) -> Element
 clg (winx, winy) shift = 
@@ -33,10 +36,11 @@ mapT f (a1, a2) = (f a1, f a2)
 mergeT : (a -> a -> b) -> (a, a) -> (a, a) -> (b, b)
 mergeT op (x1, y1) (x2, y2) = (op x1 x2, op y1 y2) 
 
+addT = mergeT (+)
+
 step : Int -> Tile -> (Int, Int) -> Tile
 step size offsetTile baseCoordinate = 
     let basePosition = mapT (toFloat << ((*) size)) baseCoordinate
-        addT = mergeT (+)
     in Tile (addT offsetTile.point baseCoordinate) (addT offsetTile.position basePosition) 
 
 osmUrl : Int -> (Int, Int) -> String
@@ -66,26 +70,39 @@ cartesianProduct xs ys =
       [] -> []
 
 -- simplified drags
-movement = S.map2 (mergeT (+)) keyMovement dragMovement
+movement = S.map2 (addT) keyMovement dragMovement
+
+zeroT = (0, 0)
 
 dragMovement : Signal (Int, Int)
-dragMovement = let rawSignal = S.foldp step' (MouseUp, (0, 0)) pnWhenDown
+dragMovement = let rawSignal = S.foldp step' (MouseUp, zeroT) pnWhenDown
                in S.map snd <| rawSignal
 
 keyMovement : Signal (Int, Int)
 keyMovement = let toTuple a = (a.x, a.y)
-                  step = mergeT (+)
-              in S.map (mapT ((*) (-256))) <| S.foldp (mergeT (+)) (0, 0) <| S.map toTuple arrows
+              in S.map (mapT ((*) (-256))) <| S.foldp (addT) zeroT <| S.map toTuple arrows
+
+step2 : (Bool, (Int, Int)) -> (Bool, (Int, Int)) -> (Int, Int)
+step2 (_, (x2, y2)) (wasDown, (lastx, lasty)) =
+    if wasDown then (lastx - x2, y2 - lasty) else zeroT
+
+dragMovement' : Signal (Int, Int)
+dragMovement' = S.foldp addT zeroT <| foldpT step2 ((False, zeroT), zeroT) pnWhenDown
 
 type DragState = MouseDown (Int, Int)
                | MouseUp
+
+foldpT : (a -> a -> b) -> (a, b) -> Signal a -> Signal b
+foldpT fn initState sgnl =
+    let glue f newB (oldB, _) = (newB, f newB oldB)
+    in S.map snd <| S.foldp (glue fn) initState sgnl 
 
 step' : (Bool, (Int, Int)) -> (DragState, (Int, Int)) -> (DragState, (Int, Int))
 step' (down, (x2, y2)) (lastState, (sumx, sumy)) =
     let newState = if down then MouseDown (x2, y2) else MouseUp
         newSum = case lastState of
                    MouseUp -> (sumx, sumy)
-                   MouseDown (lastx, lasty) -> (sumx - x2 + lastx, sumy + y2 - lasty)
+                   MouseDown (lastx, lasty) -> (sumx + x2 - lastx, sumy - y2 + lasty)
     in (newState, newSum)
 
 pnWhenDown : Signal (Bool, (Int, Int))
