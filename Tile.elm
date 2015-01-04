@@ -14,14 +14,14 @@ main = S.map2 render Window.dimensions movement
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
 
 render : (Int, Int) -> (Int, Int) -> Element
-render (winX, winY) moves = layers <| [ clg (winX, winY) moves, spacer winX winY ] 
+render (winX, winY) moves = layers <| [ clg ttf (winX, winY) moves, spacer winX winY ] 
 
-clg : (Int, Int) -> (Int, Int) -> Element
-clg (winx, winy) shift = 
+clg : (Int -> Tile -> Form) -> (Int, Int) -> (Int, Int) -> Element
+clg renderer (winx, winy) shift = 
     let size = 256
         grid = coords 9 7
         tiles = L.map (step size (offset size shift)) grid
-    in collage winx winy <| L.map (ttf size) <| tiles
+    in collage winx winy <| L.map (renderer size) <| tiles
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
@@ -29,6 +29,9 @@ ttf : Int -> Tile -> Form
 ttf size t = 
     let content = toString t.point ++ "\n" ++ toString t.position
     in move t.position <| toForm <| tileEl size t content
+
+tileEl : Int -> Tile -> String -> Element
+tileEl sz tile _ = osmTile sz tile.point
 
 mapT : (a -> b) -> (a, a) -> (b, b)
 mapT f (a1, a2) = (f a1, f a2)
@@ -44,13 +47,10 @@ step size offsetTile baseCoordinate =
     in Tile (addT offsetTile.point baseCoordinate) (addT offsetTile.position basePosition) 
 
 osmUrl : Int -> (Int, Int) -> String
-osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+5)) ++ "/" ++ (toString ((1-y)+5)) ++ ".png"
+osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
 
 osmTile : Int -> (Int, Int) -> Element
 osmTile size point = image size size <| osmUrl 5 point  
-
-tileEl : Int -> Tile -> String -> Element
-tileEl sz tile _ = color grey (container sz sz middle (osmTile sz tile.point))
 
 offset : Int -> (Int, Int) -> Tile
 offset tileSize (x, y)  = 
