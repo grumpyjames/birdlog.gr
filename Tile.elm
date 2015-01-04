@@ -14,26 +14,28 @@ main = S.map2 render Window.dimensions movement
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
 
 render : (Int, Int) -> (Int, Int) -> Element
-render (winX, winY) moves = layers <| [ clg tileEl (winX, winY) moves, clg debug (winX, winY) moves, spacer winX winY ] 
+render (winX, winY) moves = 
+    let mapLayer = renderTileGrid winX winY moves
+    in layers <| [ mapLayer osm, mapLayer debug, spacer winX winY ] 
 
-clg : Renderer -> (Int, Int) -> (Int, Int) -> Element
-clg renderer (winx, winy) shift = 
+renderTileGrid : Int -> Int -> (Int, Int) -> Render -> Element
+renderTileGrid winX winY shift render = 
     let size = 256
         grid = coords 9 7
         tiles = L.map (step size (offset size shift)) grid
-    in collage winx winy <| L.map (ttf renderer size) <| tiles
+    in collage winX winY <| L.map (ttf render size) <| tiles
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
-type alias Renderer = (Int -> Tile -> Element)
+type alias Render = (Int -> Tile -> Element)
 
-ttf : Renderer -> Int -> Tile -> Form
-ttf renderer size t = move t.position <| toForm <| renderer size t
+ttf : Render -> Int -> Tile -> Form
+ttf render size t = move t.position <| toForm <| render size t
 
-tileEl : Renderer
-tileEl sz tile = osmTile sz tile.point
+osm : Render
+osm sz tile = osmTile sz tile.point
 
-debug : Renderer
+debug : Render
 debug sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
 
 mapT : (a -> b) -> (a, a) -> (b, b)
