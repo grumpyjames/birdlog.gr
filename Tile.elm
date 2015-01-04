@@ -26,12 +26,10 @@ clg renderer (winx, winy) shift =
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
 ttf : Int -> Tile -> Form
-ttf size t = 
-    let content = toString t.point ++ "\n" ++ toString t.position
-    in move t.position <| toForm <| tileEl size t content
+ttf size t = move t.position <| toForm <| tileEl size t
 
-tileEl : Int -> Tile -> String -> Element
-tileEl sz tile _ = osmTile sz tile.point
+tileEl : Int -> Tile -> Element
+tileEl sz tile = osmTile sz tile.point
 
 mapT : (a -> b) -> (a, a) -> (b, b)
 mapT f (a1, a2) = (f a1, f a2)
