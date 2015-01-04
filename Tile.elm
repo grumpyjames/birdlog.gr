@@ -16,7 +16,7 @@ type alias Tile = { point: (Int, Int), position: (Float, Float) }
 render : (Int, Int) -> (Int, Int) -> Element
 render (winX, winY) moves = 
     let mapLayer = renderTileGrid winX winY moves
-    in layers <| [ mapLayer osm, mapLayer debug, spacer winX winY ] 
+    in layers <| [ mapLayer osm, spacer winX winY ] 
 
 renderTileGrid : Int -> Int -> (Int, Int) -> Render -> Element
 renderTileGrid winX winY shift render = 
@@ -55,12 +55,12 @@ osmUrl : Int -> (Int, Int) -> String
 osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
 
 osmTile : Int -> (Int, Int) -> Element
-osmTile size point = image size size <| osmUrl 5 point  
+osmTile size point = image size size <| osmUrl 5 point
 
 offset : Int -> (Int, Int) -> Tile
 offset tileSize (x, y)  = 
     let wraps t = (0 - t) // tileSize
-        pos t = toFloat <| t % tileSize
+        pos t = toFloat <| (*) (sgn t) <| (abs t) % tileSize
     in Tile (wraps x, wraps y) (pos x, pos y)
 
 coords : Int -> Int -> List (Int, Int)
