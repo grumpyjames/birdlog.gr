@@ -74,36 +74,21 @@ movement = S.map2 (addT) keyMovement dragMovement
 
 zeroT = (0, 0)
 
-dragMovement : Signal (Int, Int)
-dragMovement = let rawSignal = S.foldp step' (MouseUp, zeroT) pnWhenDown
-               in S.map snd <| rawSignal
-
 keyMovement : Signal (Int, Int)
 keyMovement = let toTuple a = (a.x, a.y)
               in S.map (mapT ((*) (-256))) <| S.foldp (addT) zeroT <| S.map toTuple arrows
 
 step2 : (Bool, (Int, Int)) -> (Bool, (Int, Int)) -> (Int, Int)
 step2 (_, (x2, y2)) (wasDown, (lastx, lasty)) =
-    if wasDown then (lastx - x2, y2 - lasty) else zeroT
+    if wasDown then (x2 - lastx, lasty - y2) else zeroT
 
-dragMovement' : Signal (Int, Int)
-dragMovement' = S.foldp addT zeroT <| foldpT step2 ((False, zeroT), zeroT) pnWhenDown
-
-type DragState = MouseDown (Int, Int)
-               | MouseUp
+dragMovement : Signal (Int, Int)
+dragMovement = S.foldp addT zeroT <| foldpT step2 ((False, zeroT), zeroT) pnWhenDown
 
 foldpT : (a -> a -> b) -> (a, b) -> Signal a -> Signal b
 foldpT fn initState sgnl =
     let glue f newB (oldB, _) = (newB, f newB oldB)
     in S.map snd <| S.foldp (glue fn) initState sgnl 
-
-step' : (Bool, (Int, Int)) -> (DragState, (Int, Int)) -> (DragState, (Int, Int))
-step' (down, (x2, y2)) (lastState, (sumx, sumy)) =
-    let newState = if down then MouseDown (x2, y2) else MouseUp
-        newSum = case lastState of
-                   MouseUp -> (sumx, sumy)
-                   MouseDown (lastx, lasty) -> (sumx + x2 - lastx, sumy - y2 + lasty)
-    in (newState, newSum)
 
 pnWhenDown : Signal (Bool, (Int, Int))
 pnWhenDown = S.map2 (,) Mouse.isDown Mouse.position
