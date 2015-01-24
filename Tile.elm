@@ -3,9 +3,7 @@ module Tile where
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, color, container, image, middle, layers, spacer)
-import Keyboard (arrows)
 import List as L
-import Mouse
 import Movement (movement)
 import Signal as S
 import Text (plainText)
