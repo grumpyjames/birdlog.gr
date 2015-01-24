@@ -2,6 +2,7 @@ import Graphics.Element (Element)
 import Keyboard (arrows)
 import Mouse
 import Signal as S
+import Tuple (..)
 import Text (plainText)
 
 main = S.map toEl movement
@@ -10,16 +11,6 @@ toEl : a -> Element
 toEl c = plainText <| toString c
 
 movement = S.map2 (addT) keyMovement dragMovement
-
-zeroT = (0, 0)
-
-mergeT : (a -> a -> b) -> (a, a) -> (a, a) -> (b, b)
-mergeT op (x1, y1) (x2, y2) = (op x1 x2, op y1 y2) 
-
-addT = mergeT (+)
-
-mapT : (a -> b) -> (a, a) -> (b, b)
-mapT f (a1, a2) = (f a1, f a2)
 
 keyMovement : Signal (Int, Int)
 keyMovement = let toTuple a = (a.x, a.y)

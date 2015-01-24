@@ -8,6 +8,7 @@ import List as L
 import Mouse
 import Signal as S
 import Text (plainText)
+import Tuple (..)
 import Window
 
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
@@ -39,14 +40,6 @@ osm sz tile = osmTile sz tile.point
 
 debug : Render
 debug sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
-
-mapT : (a -> b) -> (a, a) -> (b, b)
-mapT f (a1, a2) = (f a1, f a2)
-
-mergeT : (a -> a -> b) -> (a, a) -> (a, a) -> (b, b)
-mergeT op (x1, y1) (x2, y2) = (op x1 x2, op y1 y2) 
-
-addT = mergeT (+)
 
 step : Int -> Tile -> (Int, Int) -> Tile
 step size offsetTile baseCoordinate = 
