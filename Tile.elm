@@ -1,3 +1,5 @@
+module Tile where
+
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, color, container, image, middle, layers, spacer)
@@ -8,15 +10,15 @@ import Signal as S
 import Text (plainText)
 import Window
 
+type alias Tile = { point: (Int, Int), position: (Float, Float) }
+
 main : Signal Element
 main = S.map2 render Window.dimensions movement
-
-type alias Tile = { point: (Int, Int), position: (Float, Float) }
 
 render : (Int, Int) -> (Int, Int) -> Element
 render (winX, winY) moves = 
     let mapLayer = renderTileGrid winX winY moves
-    in layers <| [ mapLayer osm, spacer winX winY ] 
+    in layers <| [ mapLayer osm, mapLayer debug, spacer winX winY ] 
 
 renderTileGrid : Int -> Int -> (Int, Int) -> Render -> Element
 renderTileGrid winX winY shift render = 
@@ -73,6 +75,15 @@ cartesianProduct xs ys =
     case xs of
       z :: zs -> (cartesianProduct zs ys) ++ L.map ((,) z) ys
       [] -> []
+
+-- osm specific conversions
+log = logBase e
+tiley2lat y z = 
+    let n = pi - 2.0 * pi * y / (2.0 ^ z)
+    in 180.0 / pi * atan ( 0.5 * ( (e ^ n) - (e ^ (-n) ) ) )                
+long2tilex lon z = floor((lon + 180.0) / 360.0 * (2.0 ^ z)) 
+lat2tiley lat z = floor((1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ z))
+tilex2long x z = x / (2.0 ^ z) * 360.0 - 180
 
 -- simplified drags
 movement = S.map2 (addT) keyMovement dragMovement
