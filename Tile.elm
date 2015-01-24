@@ -1,24 +1,20 @@
-module Tile where
+module Tile (Tile, Render, render) where
 
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
-import Graphics.Element (Element, color, container, image, middle, layers, spacer)
+import Graphics.Element (Element, color, container, middle, layers, spacer)
 import List as L
-import Movement (movement)
-import Signal as S
 import Text (plainText)
 import Tuple (..)
-import Window
 
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
 
-main : Signal Element
-main = S.map2 render Window.dimensions movement
+type alias Render = (Int -> Tile -> Element)
 
-render : (Int, Int) -> (Int, Int) -> Element
-render (winX, winY) moves = 
+render : Render -> (Int, Int) -> (Int, Int) -> Element
+render rdr (winX, winY) moves = 
     let mapLayer = renderTileGrid winX winY moves
-    in layers <| [ mapLayer osm, mapLayer debug, spacer winX winY ] 
+    in layers <| [ mapLayer rdr, mapLayer debug, spacer winX winY ] 
 
 renderTileGrid : Int -> Int -> (Int, Int) -> Render -> Element
 renderTileGrid winX winY shift render = 
@@ -29,13 +25,8 @@ renderTileGrid winX winY shift render =
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
-type alias Render = (Int -> Tile -> Element)
-
 ttf : Render -> Int -> Tile -> Form
 ttf render size t = move t.position <| toForm <| render size t
-
-osm : Render
-osm sz tile = osmTile sz tile.point
 
 debug : Render
 debug sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
@@ -61,18 +52,3 @@ cartesianProduct xs ys =
     case xs of
       z :: zs -> (cartesianProduct zs ys) ++ L.map ((,) z) ys
       [] -> []
-
--- osm specifics
-log = logBase e
-tiley2lat y z = 
-    let n = pi - 2.0 * pi * y / (2.0 ^ z)
-    in 180.0 / pi * atan ( 0.5 * ( (e ^ n) - (e ^ (-n) ) ) )                
-long2tilex lon z = floor((lon + 180.0) / 360.0 * (2.0 ^ z)) 
-lat2tiley lat z = floor((1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ z))
-tilex2long x z = x / (2.0 ^ z) * 360.0 - 180
-
-osmUrl : Int -> (Int, Int) -> String
-osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
-
-osmTile : Int -> (Int, Int) -> Element
-osmTile size point = image size size <| osmUrl 5 point
