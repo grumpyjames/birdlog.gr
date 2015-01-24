@@ -53,12 +53,6 @@ step size offsetTile baseCoordinate =
     let basePosition = mapT (toFloat << ((*) size)) baseCoordinate
     in Tile (addT offsetTile.point baseCoordinate) (addT offsetTile.position basePosition) 
 
-osmUrl : Int -> (Int, Int) -> String
-osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
-
-osmTile : Int -> (Int, Int) -> Element
-osmTile size point = image size size <| osmUrl 5 point
-
 offset : Int -> (Int, Int) -> Tile
 offset tileSize (x, y)  = 
     let wraps t = (0 - t) // tileSize
@@ -76,7 +70,7 @@ cartesianProduct xs ys =
       z :: zs -> (cartesianProduct zs ys) ++ L.map ((,) z) ys
       [] -> []
 
--- osm specific conversions
+-- osm specifics
 log = logBase e
 tiley2lat y z = 
     let n = pi - 2.0 * pi * y / (2.0 ^ z)
@@ -84,6 +78,12 @@ tiley2lat y z =
 long2tilex lon z = floor((lon + 180.0) / 360.0 * (2.0 ^ z)) 
 lat2tiley lat z = floor((1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ z))
 tilex2long x z = x / (2.0 ^ z) * 360.0 - 180
+
+osmUrl : Int -> (Int, Int) -> String
+osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
+
+osmTile : Int -> (Int, Int) -> Element
+osmTile size point = image size size <| osmUrl 5 point
 
 -- simplified drags
 movement = S.map2 (addT) keyMovement dragMovement
