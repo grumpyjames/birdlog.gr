@@ -1,3 +1,5 @@
+module Movement (main, movement) where 
+
 import Graphics.Element (Element)
 import Keyboard (arrows)
 import Mouse
@@ -5,10 +7,7 @@ import Signal as S
 import Tuple (..)
 import Text (plainText)
 
-main = S.map toEl movement
-
-toEl : a -> Element
-toEl c = plainText <| toString c
+main = S.map (\c -> plainText <| toString c) movement
 
 movement = S.map2 (addT) keyMovement dragMovement
 

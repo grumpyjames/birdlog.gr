@@ -1,4 +1,4 @@
-module Tuple where
+module Tuple (zeroT, mapT, addT) where
 
 zeroT = (0, 0)
 
