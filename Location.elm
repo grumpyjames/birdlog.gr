@@ -11,6 +11,6 @@ show lr =
     case lr of
       NoneYet -> plainText "No location yet"
       Error code -> plainText <| "An error of code: " ++ (toString code)
-      LatLn lat lon -> centeredOn 5 lat lon
+      LatLn lat lon -> centeredOn 8 {lat = lat, lon = lon}
 
 type LocationResponse = NoneYet | LatLn Float Float | Error Int
