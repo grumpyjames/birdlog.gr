@@ -14,7 +14,7 @@ type alias Render = (Int -> Tile -> Element)
 render : Render -> (Int, Int) -> (Int, Int) -> Element
 render rdr (winX, winY) moves = 
     let mapLayer = renderTileGrid winX winY moves
-    in layers <| [ mapLayer rdr, mapLayer debug, spacer winX winY ] 
+    in layers <| [ mapLayer rdr, mapLayer debug, spacer winX winY ]
 
 renderTileGrid : Int -> Int -> (Int, Int) -> Render -> Element
 renderTileGrid winX winY shift render = 

@@ -1,4 +1,4 @@
-module Osm (centeredOn, osm) where
+module Osm (GeoPoint, centeredOn, convert, osm, simpleOsm) where
 
 import Graphics.Element (Element, image)
 import Tile (..)
@@ -12,7 +12,6 @@ tileSize = 256
 convert : Int -> GeoPoint -> (TileOffset, TileOffset)
 convert zoom geopt = mapT toOffset (lon2tilex zoom geopt.lon, lat2tiley zoom geopt.lat)
 
--- FIXME: primitive obsession!
 centeredOn : Int -> GeoPoint -> Element
 centeredOn zoom geopt = 
     let tx = toOffset <| lon2tilex zoom geopt.lon
@@ -22,13 +21,15 @@ centeredOn zoom geopt =
 osm : Render
 osm size tile = image size size <| osmUrl 5 tile.point
 
+simpleOsm zoom tc = image tileSize tileSize <| osmUrl2 zoom tc
+
 osmUrl2 : Int -> (Int, Int) -> String
 osmUrl2 zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString x) ++ "/" ++ (toString y) ++ ".png"
 
 osmUrl : Int -> (Int, Int) -> String
 osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
 
--- conversions (unused as yet)
+-- conversions
 log = logBase e
 tiley2lat y z = 
     let n = pi - 2.0 * pi * y / (2.0 ^ z)
