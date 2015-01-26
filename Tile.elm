@@ -7,7 +7,7 @@ import List as L
 import Text (plainText)
 import Tuple (..)
 
-type alias Tile = { point: (Int, Int), position: (Float, Float) }
+type alias Tile = { point: (Int, Int), position: (Int, Int) }
 type alias Render = Int -> Int -> (Int, Int) -> Element
 
 render : Render -> Int -> Int -> (Int, Int) -> (Int, Int) -> Element
@@ -24,31 +24,38 @@ wrap f = \z sz t -> f z sz t.point
 renderTileGrid : Int -> Int -> Int -> Int -> (Int, Int) -> InnerRender -> Element
 renderTileGrid size zoom winX winY shift render = 
     let grid = coords 9 7
-        tiles = L.map (step size (offset size shift)) grid
+        meh c = (size * c) // 2
+        posnOffset = (meh (-9), meh (7))
+        tiles = L.map (step posnOffset size (offset size shift)) grid
     in collage winX winY <| L.map (ttf render zoom size) <| tiles
+
+step : (Int, Int) -> Int -> Tile -> (Int, Int) -> Tile
+step positionOffset size offset base = 
+    let basePosition = addT positionOffset <| mapT ((*) size) <| flipY base
+    in Tile (addT offset.point base) (addT offset.position basePosition) 
+
+flipY : (Int, Int) -> (Int, Int)
+flipY t = (fst t, (-1) * snd t)
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
 ttf : InnerRender -> Int -> Int -> Tile -> Form
-ttf render zoom size t = move t.position <| toForm <| render zoom size t
+ttf render zoom size t = move (mapT toFloat t.position) <| toForm <| render zoom size t
 
 debug : InnerRender
 debug zoom sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
 
-step : Int -> Tile -> (Int, Int) -> Tile
-step size offsetTile baseCoordinate = 
-    let basePosition = mapT (toFloat << ((*) size)) baseCoordinate
-    in Tile (addT offsetTile.point baseCoordinate) (addT offsetTile.position basePosition) 
-
+-- given a tile size, and an amount of movement in pixels, give a tile offset by which to move everything
+-- wraps give the number of tiles that should wrap, the remainder gives the actual pixel movement.
 offset : Int -> (Int, Int) -> Tile
 offset tileSize (x, y)  = 
     let wraps t = (0 - t) // tileSize
-        pos t = toFloat <| (*) (sgn t) <| (abs t) % tileSize
-    in Tile (wraps x, wraps y) (pos x, pos y)
+        pos t = (*) (sgn t) <| (abs t) % tileSize
+    in Tile (wraps x, wraps (-y)) (pos x, pos y)
 
 coords : Int -> Int -> List (Int, Int)
 coords xc yc = 
-    let coordRange t = [(( 1 - t ) // 2)..((t - 1) // 2)]
+    let coordRange t = [0..t]
     in cartesianProduct (coordRange xc) (coordRange yc)
 
 cartesianProduct : List a -> List b -> List (a, b)

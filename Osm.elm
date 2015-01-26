@@ -27,7 +27,7 @@ osmUrl2 : Int -> (Int, Int) -> String
 osmUrl2 zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString x) ++ "/" ++ (toString y) ++ ".png"
 
 osmUrl : Int -> (Int, Int) -> String
-osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString ((1-y)+10)) ++ ".png"
+osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString (y+10)) ++ ".png"
 
 -- conversions
 log = logBase e
