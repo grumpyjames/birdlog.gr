@@ -42,8 +42,10 @@ flipY t = (fst t, (-1) * snd t)
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
+applyCenter tile = { point = addT (10, 10) tile.point, position = tile.position }
+
 ttf : InnerRender -> Int -> Int -> Tile -> Form
-ttf render zoom size t = move (mapT toFloat t.position) <| toForm <| render zoom size t
+ttf render zoom size t = move (mapT toFloat t.position) <| toForm <| render zoom size <| applyCenter t
 
 debug : InnerRender
 debug zoom sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position

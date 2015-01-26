@@ -16,18 +16,15 @@ centeredOn : Int -> GeoPoint -> Element
 centeredOn zoom geopt = 
     let tx = toOffset <| lon2tilex zoom geopt.lon
         ty = toOffset <| lat2tiley zoom geopt.lat
-    in image tileSize tileSize <| osmUrl2 zoom (tx.index, ty.index)
+    in image tileSize tileSize <| osmUrl zoom (tx.index, ty.index)
 
 osm : Render
 osm zoom size tile = image size size <| osmUrl zoom tile
 
-simpleOsm zoom tc = image tileSize tileSize <| osmUrl2 zoom tc
-
-osmUrl2 : Int -> (Int, Int) -> String
-osmUrl2 zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString x) ++ "/" ++ (toString y) ++ ".png"
+simpleOsm zoom tc = image tileSize tileSize <| osmUrl zoom tc
 
 osmUrl : Int -> (Int, Int) -> String
-osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString (x+10)) ++ "/" ++ (toString (y+10)) ++ ".png"
+osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString x) ++ "/" ++ (toString y) ++ ".png"
 
 -- conversions
 log = logBase e
