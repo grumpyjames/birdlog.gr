@@ -6,4 +6,4 @@ import Signal as S
 import Tile (render)
 import Window
 
-main = S.map2 (render osm tileSize) Window.dimensions movement
+main = S.map2 (render osm tileSize 5) Window.dimensions movement

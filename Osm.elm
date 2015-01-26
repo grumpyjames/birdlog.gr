@@ -19,7 +19,7 @@ centeredOn zoom geopt =
     in image tileSize tileSize <| osmUrl2 zoom (tx.index, ty.index)
 
 osm : Render
-osm size tile = image size size <| osmUrl 5 tile
+osm zoom size tile = image size size <| osmUrl zoom tile
 
 simpleOsm zoom tc = image tileSize tileSize <| osmUrl2 zoom tc
 

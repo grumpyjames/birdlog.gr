@@ -8,32 +8,32 @@ import Text (plainText)
 import Tuple (..)
 
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
-type alias Render = Int -> (Int, Int) -> Element
+type alias Render = Int -> Int -> (Int, Int) -> Element
 
-render : Render -> Int -> (Int, Int) -> (Int, Int) -> Element
-render rdr tileSize (winX, winY) moves = 
-    let mapLayer = renderTileGrid tileSize winX winY moves
+render : Render -> Int -> Int -> (Int, Int) -> (Int, Int) -> Element
+render rdr tileSize zoom (winX, winY) moves = 
+    let mapLayer = renderTileGrid tileSize zoom winX winY moves
     in layers <| [ mapLayer (wrap rdr), mapLayer debug, spacer winX winY ]
 
 
-type alias InnerRender = (Int -> Tile -> Element)
+type alias InnerRender = (Int -> Int -> Tile -> Element)
 
 wrap : Render -> InnerRender
-wrap f = \sz t -> f sz t.point 
+wrap f = \z sz t -> f z sz t.point 
 
-renderTileGrid : Int -> Int -> Int -> (Int, Int) -> InnerRender -> Element
-renderTileGrid size winX winY shift render = 
+renderTileGrid : Int -> Int -> Int -> Int -> (Int, Int) -> InnerRender -> Element
+renderTileGrid size zoom winX winY shift render = 
     let grid = coords 9 7
         tiles = L.map (step size (offset size shift)) grid
-    in collage winX winY <| L.map (ttf render size) <| tiles
+    in collage winX winY <| L.map (ttf render zoom size) <| tiles
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
-ttf : InnerRender -> Int -> Tile -> Form
-ttf render size t = move t.position <| toForm <| render size t
+ttf : InnerRender -> Int -> Int -> Tile -> Form
+ttf render zoom size t = move t.position <| toForm <| render zoom size t
 
 debug : InnerRender
-debug sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
+debug zoom sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
 
 step : Int -> Tile -> (Int, Int) -> Tile
 step size offsetTile baseCoordinate = 
