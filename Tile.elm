@@ -1,4 +1,4 @@
-module Tile (Tile, Render, render) where
+module Tile (Render, render) where
 
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
@@ -8,15 +8,20 @@ import Text (plainText)
 import Tuple (..)
 
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
-
-type alias Render = (Int -> Tile -> Element)
+type alias Render = Int -> (Int, Int) -> Element
 
 render : Render -> (Int, Int) -> (Int, Int) -> Element
 render rdr (winX, winY) moves = 
     let mapLayer = renderTileGrid winX winY moves
-    in layers <| [ mapLayer rdr, mapLayer debug, spacer winX winY ]
+    in layers <| [ mapLayer (wrap rdr), mapLayer debug, spacer winX winY ]
 
-renderTileGrid : Int -> Int -> (Int, Int) -> Render -> Element
+
+type alias InnerRender = (Int -> Tile -> Element)
+
+wrap : Render -> InnerRender
+wrap f = \sz t -> f sz t.point 
+
+renderTileGrid : Int -> Int -> (Int, Int) -> InnerRender -> Element
 renderTileGrid winX winY shift render = 
     let size = 256
         grid = coords 9 7
@@ -25,10 +30,10 @@ renderTileGrid winX winY shift render =
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
-ttf : Render -> Int -> Tile -> Form
+ttf : InnerRender -> Int -> Tile -> Form
 ttf render size t = move t.position <| toForm <| render size t
 
-debug : Render
+debug : InnerRender
 debug sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
 
 step : Int -> Tile -> (Int, Int) -> Tile
