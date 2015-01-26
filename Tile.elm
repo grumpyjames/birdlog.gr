@@ -23,9 +23,12 @@ wrap f = \z sz t -> f z sz t.point
 
 renderTileGrid : Int -> Int -> Int -> Int -> (Int, Int) -> InnerRender -> Element
 renderTileGrid size zoom winX winY shift render = 
-    let grid = coords 9 7
-        meh c = (size * c) // 2
-        posnOffset = (meh (-9), meh (7))
+    let requiredTiles dim = (3 * size + dim) // size
+        xTiles = requiredTiles winX
+        yTiles = requiredTiles winY
+        grid = coords xTiles yTiles
+        tc c = (size * c) // 2
+        posnOffset = (tc (-1 * xTiles), tc yTiles)
         tiles = L.map (step posnOffset size (offset size shift)) grid
     in collage winX winY <| L.map (ttf render zoom size) <| tiles
 
