@@ -1,4 +1,4 @@
-module Osm (GeoPoint, centeredOn, convert, osm, simpleOsm) where
+module Osm (GeoPoint, centeredOn, convert, osm, simpleOsm, tileSize) where
 
 import Graphics.Element (Element, image)
 import Tile (..)

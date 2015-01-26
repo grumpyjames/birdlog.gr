@@ -10,9 +10,9 @@ import Tuple (..)
 type alias Tile = { point: (Int, Int), position: (Float, Float) }
 type alias Render = Int -> (Int, Int) -> Element
 
-render : Render -> (Int, Int) -> (Int, Int) -> Element
-render rdr (winX, winY) moves = 
-    let mapLayer = renderTileGrid winX winY moves
+render : Render -> Int -> (Int, Int) -> (Int, Int) -> Element
+render rdr tileSize (winX, winY) moves = 
+    let mapLayer = renderTileGrid tileSize winX winY moves
     in layers <| [ mapLayer (wrap rdr), mapLayer debug, spacer winX winY ]
 
 
@@ -21,10 +21,9 @@ type alias InnerRender = (Int -> Tile -> Element)
 wrap : Render -> InnerRender
 wrap f = \sz t -> f sz t.point 
 
-renderTileGrid : Int -> Int -> (Int, Int) -> InnerRender -> Element
-renderTileGrid winX winY shift render = 
-    let size = 256
-        grid = coords 9 7
+renderTileGrid : Int -> Int -> Int -> (Int, Int) -> InnerRender -> Element
+renderTileGrid size winX winY shift render = 
+    let grid = coords 9 7
         tiles = L.map (step size (offset size shift)) grid
     in collage winX winY <| L.map (ttf render size) <| tiles
 
