@@ -15,16 +15,16 @@ render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
 render rdr tileSize zoom window c =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
         mapCenter = multiplyT (-1, 1) c 
-        (xTiles, yTiles) = mapT requiredTiles window
+        tileCounts = mapT requiredTiles window
         ((xTileOff, xPixelOff), (yTileOff, yPixelOff))  = mapT (toOffset tileSize) mapCenter
-        (originX, originY) = subtractT (xTileOff, yTileOff) <| mapT ((//) 2) (xTiles, yTiles)
-        basePosition = ((tileSize * xTiles) // (-2), (tileSize * yTiles) // (-2))
-        xRange = [originX..(originX + xTiles - 1)]
-        yRange = [originY..(originY + yTiles - 1)]
+        (originX, originY) = subtractT (xTileOff, yTileOff) <| mapT (\a -> a // 2) tileCounts
+        basePosition = mapT (\a -> a // (-2)) <| mapT ((*) tileSize) tileCounts
+        xRange = [originX..(originX + (fst tileCounts) - 1)]
+        yRange = [originY..(originY + (snd tileCounts) - 1)]
         -- flip y's sign, elm treats co-ordinates sensible, OSM does not.
         pixelOffset = (128 - xPixelOff, 128 - yPixelOff)
         (winX, winY) = window
-        debugInfo = "originTile: " ++ toString (originX, originY) ++ ", centre: " ++ toString mapCenter
+        debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString (originX, originY) ++ ", centre: " ++ toString mapCenter
         grid = cartesianProduct xRange yRange
         tiles = L.map (step tileSize basePosition (originX, originY) pixelOffset) grid
         drawTiles renderer = collage winX winY <| L.map (ttf renderer zoom tileSize) <| tiles
