@@ -12,10 +12,8 @@ type alias Render = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
 render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
-render rdr tileSize zoom window c =
+render rdr tileSize zoom window mapCenter =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
-        -- 'inverted' mouse, but elm's y and osms are opposite. Do the remaining flips in `step`
-        mapCenter = multiplyT (-1, 1) c 
         tileCounts = mapT requiredTiles window
         ((xTileOff, xPixelOff), (yTileOff, yPixelOff)) = mapT (toOffset tileSize) mapCenter
         origin = subtractT (xTileOff, yTileOff) <| mapT (\a -> a // 2) tileCounts
