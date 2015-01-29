@@ -18,7 +18,7 @@ render rdr tileSize zoom window c =
         (xTiles, yTiles) = mapT requiredTiles window
         ((xTileOff, xPixelOff), (yTileOff, yPixelOff))  = mapT (toOffset tileSize) mapCenter
         (originX, originY) = subtractT (xTileOff, yTileOff) <| mapT ((//) 2) (xTiles, yTiles)
-        basePosition = ((tileSize * xTiles) // (-2), (tileSize * yTiles) // 2)
+        basePosition = ((tileSize * xTiles) // (-2), (tileSize * yTiles) // (-2))
         xRange = [originX..(originX + xTiles - 1)]
         yRange = [originY..(originY + yTiles - 1)]
         -- flip y's sign, elm treats co-ordinates sensible, OSM does not.
@@ -36,7 +36,7 @@ render rdr tileSize zoom window c =
 
 step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
 step tileSize basePosition origin pixelOff coord = 
-    let position = addT basePosition <| addT (flipY pixelOff) <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
+    let position = addT (flipY basePosition) <| addT (flipY pixelOff) <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
     in Tile coord position
 
 toOffset : Int -> Int -> (Int, Int)
