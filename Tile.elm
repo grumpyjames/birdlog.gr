@@ -30,9 +30,8 @@ render rdr tileSize model =
         tiles = L.map (step tileSize basePosition origin pixelOffset) <| tileRange origin tileCounts
         drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
-                   drawTiles debug,
-                   container winX winY middle <| plainText <| debugInfo,
-                   spacer winX winY ]
+                    drawTiles debug,
+                    spacer winX winY ]
 
 tileRange : (Int, Int) -> (Int, Int) -> List (Int, Int)
 tileRange (originX, originY) (countX, countY) =
