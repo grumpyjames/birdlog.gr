@@ -1,4 +1,4 @@
-module Tuple (zeroT, mapT, addT) where
+module Tuple (zeroT, mapT, addT, subtractT) where
 
 zeroT = (0, 0)
 
@@ -9,3 +9,4 @@ mergeT : (a -> a -> b) -> (a, a) -> (a, a) -> (b, b)
 mergeT op (x1, y1) (x2, y2) = (op x1 x2, op y1 y2) 
 
 addT = mergeT (+)
+subtractT = mergeT (-)

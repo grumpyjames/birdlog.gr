@@ -9,13 +9,45 @@ import Tuple (..)
 
 type alias Tile = { point: (Int, Int), position: (Int, Int) }
 type alias Render = Zoom -> Int -> (Int, Int) -> Element
-
 type Zoom = Zoom Int
 
 render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
-render rdr tileSize zoom (winX, winY) moves = 
-    let mapLayer = renderTileGrid tileSize zoom winX winY moves
-    in layers <| [ mapLayer (wrap rdr), mapLayer debug, spacer winX winY ]
+render rdr tileSize zoom (winX, winY) (centerX, centerY) =
+    let requiredTiles dim = (3 * tileSize + dim) // tileSize
+        xTiles = requiredTiles winX
+        yTiles = requiredTiles winY
+        (xTileOff, xPixelOff) = toOffset tileSize centerX
+        (yTileOff, yPixelOff) = toOffset tileSize (-centerY)
+        originX = xTileOff - (xTiles // 2)
+        originY = yTileOff - (yTiles // 2)
+        basePosition = ((tileSize * xTiles) // (-2), (tileSize * yTiles) // 2)
+        xRange = [originX..(originX + xTiles - 1)]
+        yRange = [originY..(originY + yTiles - 1)]
+        pixelOffset = (128 - xPixelOff, yPixelOff - 128)
+        debugInfo = "originTile: " ++ toString (originX, originY) ++ ", centre: " ++ toString (centerX, (-centerY)) 
+        mapLayer = renderTileGrid tileSize zoom basePosition (winX, winY) (originX, originY) xRange yRange pixelOffset 
+    in layers <| [ mapLayer (wrap rdr),
+                   mapLayer debug,
+                   container winX winY middle <| plainText <| debugInfo,
+                   spacer winX winY ]
+
+renderTileGrid : Int -> Zoom -> (Int, Int) -> (Int,Int) -> (Int,Int) -> List Int -> List Int -> (Int, Int) -> InnerRender -> Element
+renderTileGrid tileSize zoom basePos (winX, winY) origin xRange yRange pixeloff render = 
+    let grid = cartesianProduct xRange yRange
+        tiles = L.map (step tileSize basePos origin pixeloff) grid
+    in collage winX winY <| L.map (ttf render zoom tileSize) <| tiles
+
+
+step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
+step tileSize basePosition origin pixelOff coord = 
+    let position = addT basePosition <| addT pixelOff <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
+    in Tile coord position
+
+toOffset : Int -> Int -> (Int, Int)
+toOffset tileSize coord = 
+    let index = coord // tileSize
+        pixel = coord - (index * tileSize)
+    in ( index, pixel )
 
 
 type alias InnerRender = (Zoom -> Int -> Tile -> Element)
@@ -23,21 +55,11 @@ type alias InnerRender = (Zoom -> Int -> Tile -> Element)
 wrap : Render -> InnerRender
 wrap f = \z sz t -> f z sz t.point 
 
-renderTileGrid : Int -> Zoom -> Int -> Int -> (Int, Int) -> InnerRender -> Element
-renderTileGrid size zoom winX winY shift render = 
-    let requiredTiles dim = (3 * size + dim) // size
-        xTiles = requiredTiles winX
-        yTiles = requiredTiles winY
-        grid = coords xTiles yTiles
-        tc c = (size * c) // 2
-        posnOffset = (tc (-1 * xTiles), tc yTiles)
-        tiles = L.map (step posnOffset size (offset size shift)) grid
-    in collage winX winY <| L.map (ttf render (0,0) (0,0) zoom size) <| tiles
 
-step : (Int, Int) -> Int -> Tile -> (Int, Int) -> Tile
-step positionOffset size offset base = 
-    let basePosition = addT positionOffset <| mapT ((*) size) <| flipY base
-    in Tile (addT offset.point base) (addT offset.position basePosition) 
+ttf : InnerRender -> Zoom -> Int -> Tile -> Form
+ttf render zoom tileSize t =
+    let d = mapT toFloat t.position
+    in move d <| toForm <| render zoom tileSize t
 
 flipY : (Int, Int) -> (Int, Int)
 flipY t = (fst t, (-1) * snd t)
@@ -45,9 +67,6 @@ flipY t = (fst t, (-1) * snd t)
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
 applyCenter tileOff pixelOff tile = { point = addT tileOff tile.point, position = addT pixelOff tile.position }
-
-ttf : InnerRender -> (Int, Int) -> (Int, Int) -> Zoom -> Int -> Tile -> Form
-ttf render tileOff pixelOff zoom size t = move (mapT toFloat t.position) <| toForm <| render zoom size <| applyCenter tileOff pixelOff t
 
 debug : InnerRender
 debug zoom sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
