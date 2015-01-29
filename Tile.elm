@@ -12,8 +12,9 @@ type alias Render = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
 render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
-render rdr tileSize zoom (winX, winY) (centerX, centerY) =
+render rdr tileSize zoom (winX, winY) c =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
+        (centerX, centerY) = mapT ((*) -1) c 
         xTiles = requiredTiles winX
         yTiles = requiredTiles winY
         (xTileOff, xPixelOff) = toOffset tileSize centerX
