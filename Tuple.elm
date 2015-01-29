@@ -1,4 +1,4 @@
-module Tuple (zeroT, mapT, addT, subtractT) where
+module Tuple (zeroT, mapT, addT, multiplyT, subtractT) where
 
 zeroT = (0, 0)
 
@@ -10,3 +10,4 @@ mergeT op (x1, y1) (x2, y2) = (op x1 x2, op y1 y2)
 
 addT = mergeT (+)
 subtractT = mergeT (-)
+multiplyT = mergeT (*)
