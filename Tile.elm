@@ -1,4 +1,4 @@
-module Tile (Render, Zoom(..), render) where
+module Tile (Render, Model, Zoom(..), render) where
 
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
@@ -11,18 +11,24 @@ type alias Tile = { point: (Int, Int), position: (Int, Int) }
 type alias Render = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
-render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
-render rdr tileSize zoom window mapCenter =
+type alias Model = {
+      zoom : Zoom,
+      window : (Int, Int),
+      mapCenter : (Int, Int)
+}
+
+render : Render -> Int -> Model -> Element
+render rdr tileSize model =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
-        tileCounts = mapT requiredTiles window
-        ((xTileOff, xPixelOff), (yTileOff, yPixelOff)) = mapT (toOffset tileSize) mapCenter
+        tileCounts = mapT requiredTiles model.window
+        ((xTileOff, xPixelOff), (yTileOff, yPixelOff)) = mapT (toOffset tileSize) model.mapCenter
         origin = subtractT (xTileOff, yTileOff) <| mapT (\a -> a // 2) tileCounts
         basePosition = mapT (\a -> a // (-2)) <| mapT ((*) tileSize) tileCounts
         pixelOffset = (128 - xPixelOff, 128 - yPixelOff)
-        (winX, winY) = window
-        debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString origin ++ ", centre: " ++ toString mapCenter
+        (winX, winY) = model.window
+        debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString origin ++ ", centre: " ++ toString model.mapCenter
         tiles = L.map (step tileSize basePosition origin pixelOffset) <| tileRange origin tileCounts
-        drawTiles renderer = collage winX winY <| L.map (ttf renderer zoom tileSize) <| tiles
+        drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                    drawTiles debug,
                    container winX winY middle <| plainText <| debugInfo,
