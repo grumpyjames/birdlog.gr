@@ -4,6 +4,7 @@ import Native.Location (convert, location)
 import Osm (GeoPoint, convert, simpleOsm)
 import Signal (map)
 import Text (plainText)
+import Tile (Zoom(..))
 import Tuple (mapT)
 
 main = map show Native.Location.location
@@ -13,9 +14,9 @@ show lr =
     case lr of
       NoneYet -> plainText "No location yet"
       Error code -> plainText <| "An error of code: " ++ (toString code)
-      LatLn lat lon -> showLocation 16 {lat = lat, lon = lon}
+      LatLn lat lon -> showLocation (Zoom 16) {lat = lat, lon = lon}
 
-showLocation : Int -> GeoPoint -> Element
+showLocation : Zoom -> GeoPoint -> Element
 showLocation zoom geopt =
     let offsets = convert zoom geopt
         tileImg = simpleOsm zoom <| mapT (\t -> t.index) offsets

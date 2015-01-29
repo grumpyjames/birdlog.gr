@@ -1,4 +1,4 @@
-module Tile (Render, render) where
+module Tile (Render, Zoom(..), render) where
 
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
@@ -8,20 +8,22 @@ import Text (plainText)
 import Tuple (..)
 
 type alias Tile = { point: (Int, Int), position: (Int, Int) }
-type alias Render = Int -> Int -> (Int, Int) -> Element
+type alias Render = Zoom -> Int -> (Int, Int) -> Element
 
-render : Render -> Int -> Int -> (Int, Int) -> (Int, Int) -> Element
+type Zoom = Zoom Int
+
+render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
 render rdr tileSize zoom (winX, winY) moves = 
     let mapLayer = renderTileGrid tileSize zoom winX winY moves
     in layers <| [ mapLayer (wrap rdr), mapLayer debug, spacer winX winY ]
 
 
-type alias InnerRender = (Int -> Int -> Tile -> Element)
+type alias InnerRender = (Zoom -> Int -> Tile -> Element)
 
 wrap : Render -> InnerRender
 wrap f = \z sz t -> f z sz t.point 
 
-renderTileGrid : Int -> Int -> Int -> Int -> (Int, Int) -> InnerRender -> Element
+renderTileGrid : Int -> Zoom -> Int -> Int -> (Int, Int) -> InnerRender -> Element
 renderTileGrid size zoom winX winY shift render = 
     let requiredTiles dim = (3 * size + dim) // size
         xTiles = requiredTiles winX
@@ -30,7 +32,7 @@ renderTileGrid size zoom winX winY shift render =
         tc c = (size * c) // 2
         posnOffset = (tc (-1 * xTiles), tc yTiles)
         tiles = L.map (step posnOffset size (offset size shift)) grid
-    in collage winX winY <| L.map (ttf render zoom size) <| tiles
+    in collage winX winY <| L.map (ttf render (0,0) (0,0) zoom size) <| tiles
 
 step : (Int, Int) -> Int -> Tile -> (Int, Int) -> Tile
 step positionOffset size offset base = 
@@ -42,10 +44,10 @@ flipY t = (fst t, (-1) * snd t)
 
 sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
 
-applyCenter tile = { point = addT (10, 10) tile.point, position = tile.position }
+applyCenter tileOff pixelOff tile = { point = addT tileOff tile.point, position = addT pixelOff tile.position }
 
-ttf : InnerRender -> Int -> Int -> Tile -> Form
-ttf render zoom size t = move (mapT toFloat t.position) <| toForm <| render zoom size <| applyCenter t
+ttf : InnerRender -> (Int, Int) -> (Int, Int) -> Zoom -> Int -> Tile -> Form
+ttf render tileOff pixelOff zoom size t = move (mapT toFloat t.position) <| toForm <| render zoom size <| applyCenter tileOff pixelOff t
 
 debug : InnerRender
 debug zoom sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position

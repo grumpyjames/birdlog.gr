@@ -1,7 +1,7 @@
 module Osm (GeoPoint, centeredOn, convert, osm, simpleOsm, tileSize) where
 
 import Graphics.Element (Element, image)
-import Tile (..)
+import Tile (Render, Zoom(..))
 import Tuple (mapT)
 
 type alias TileOffset = { index: Int, pixel: Int }
@@ -9,10 +9,10 @@ type alias GeoPoint = { lat: Float, lon: Float }
 
 tileSize = 256
 
-convert : Int -> GeoPoint -> (TileOffset, TileOffset)
+convert : Zoom -> GeoPoint -> (TileOffset, TileOffset)
 convert zoom geopt = mapT toOffset (lon2tilex zoom geopt.lon, lat2tiley zoom geopt.lat)
 
-centeredOn : Int -> GeoPoint -> Element
+centeredOn : Zoom -> GeoPoint -> Element
 centeredOn zoom geopt = 
     let tx = toOffset <| lon2tilex zoom geopt.lon
         ty = toOffset <| lat2tiley zoom geopt.lat
@@ -23,8 +23,10 @@ osm zoom size tile = image size size <| osmUrl zoom tile
 
 simpleOsm zoom tc = image tileSize tileSize <| osmUrl zoom tc
 
-osmUrl : Int -> (Int, Int) -> String
-osmUrl zoom (x,y) = "http://tile.openstreetmap.org/" ++ (toString zoom) ++ "/" ++ (toString x) ++ "/" ++ (toString y) ++ ".png"
+osmUrl : Zoom -> (Int, Int) -> String
+osmUrl zoom (x,y) = 
+    case zoom of
+      Zoom z -> "http://tile.openstreetmap.org/" ++ (toString z) ++ "/" ++ (toString x) ++ "/" ++ (toString y) ++ ".png"
 
 -- conversions
 log = logBase e
@@ -38,10 +40,12 @@ toOffset f =
         pixel = floor ((f - (toFloat index)) * tileSize)
     in { index = index, pixel = pixel }  
 
-lon2tilex : Int -> Float -> Float
-lon2tilex z lon = (lon + 180.0) / 360.0 * (2.0 ^ (toFloat z)) 
+lon2tilex : Zoom -> Float -> Float
+lon2tilex zoom lon = 
+    case zoom of Zoom z -> (lon + 180.0) / 360.0 * (2.0 ^ (toFloat z)) 
 
-lat2tiley : Int -> Float -> Float
-lat2tiley z lat = (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat z))
+lat2tiley : Zoom -> Float -> Float
+lat2tiley zoom lat = 
+    case zoom of Zoom z -> (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat z))
 
 tilex2long x z = x / (2.0 ^ z) * 360.0 - 180
