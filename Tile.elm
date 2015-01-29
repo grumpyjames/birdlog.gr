@@ -12,21 +12,21 @@ type alias Render = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
 render : Render -> Int -> Zoom -> (Int, Int) -> (Int, Int) -> Element
-render rdr tileSize zoom (winX, winY) c =
+render rdr tileSize zoom window c =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
         (centerX, centerY) = mapT ((*) -1) c 
-        xTiles = requiredTiles winX
-        yTiles = requiredTiles winY
+        (xTiles, yTiles) = mapT requiredTiles window
         (xTileOff, xPixelOff) = toOffset tileSize centerX
         (yTileOff, yPixelOff) = toOffset tileSize (-centerY)
-        originX = xTileOff - (xTiles // 2)
-        originY = yTileOff - (yTiles // 2)
+        (originX, originY) = subtractT (xTileOff, yTileOff) <| mapT ((//) 2) (xTiles, yTiles)
         basePosition = ((tileSize * xTiles) // (-2), (tileSize * yTiles) // 2)
         xRange = [originX..(originX + xTiles - 1)]
         yRange = [originY..(originY + yTiles - 1)]
+        -- flip y's sign, elm treats co-ordinates sensible, OSM does not.
         pixelOffset = (128 - xPixelOff, yPixelOff - 128)
+        (winX, winY) = window
         debugInfo = "originTile: " ++ toString (originX, originY) ++ ", centre: " ++ toString (centerX, (-centerY)) 
-        mapLayer = renderTileGrid tileSize zoom basePosition (winX, winY) (originX, originY) xRange yRange pixelOffset 
+        mapLayer = renderTileGrid tileSize zoom basePosition window (originX, originY) xRange yRange pixelOffset 
     in layers <| [ mapLayer (wrap rdr),
                    mapLayer debug,
                    container winX winY middle <| plainText <| debugInfo,
