@@ -25,17 +25,13 @@ render rdr tileSize zoom window c =
         pixelOffset = (128 - xPixelOff, yPixelOff - 128)
         (winX, winY) = window
         debugInfo = "originTile: " ++ toString (originX, originY) ++ ", centre: " ++ toString mapCenter
-        mapLayer = renderTileGrid tileSize zoom basePosition window (originX, originY) xRange yRange pixelOffset 
-    in layers <| [ mapLayer (wrap rdr),
-                   mapLayer debug,
+        grid = cartesianProduct xRange yRange
+        tiles = L.map (step tileSize basePosition (originX, originY) pixelOffset) grid
+        drawTiles renderer = collage winX winY <| L.map (ttf renderer zoom tileSize) <| tiles
+     in layers <| [ drawTiles (wrap rdr),
+                   drawTiles debug,
                    container winX winY middle <| plainText <| debugInfo,
                    spacer winX winY ]
-
-renderTileGrid : Int -> Zoom -> (Int, Int) -> (Int,Int) -> (Int,Int) -> List Int -> List Int -> (Int, Int) -> InnerRender -> Element
-renderTileGrid tileSize zoom basePos (winX, winY) origin xRange yRange pixeloff render = 
-    let grid = cartesianProduct xRange yRange
-        tiles = L.map (step tileSize basePos origin pixeloff) grid
-    in collage winX winY <| L.map (ttf render zoom tileSize) <| tiles
 
 
 step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
