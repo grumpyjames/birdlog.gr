@@ -16,23 +16,24 @@ render rdr tileSize zoom window c =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
         mapCenter = multiplyT (-1, 1) c 
         tileCounts = mapT requiredTiles window
-        ((xTileOff, xPixelOff), (yTileOff, yPixelOff))  = mapT (toOffset tileSize) mapCenter
-        (originX, originY) = subtractT (xTileOff, yTileOff) <| mapT (\a -> a // 2) tileCounts
+        ((xTileOff, xPixelOff), (yTileOff, yPixelOff)) = mapT (toOffset tileSize) mapCenter
+        origin = subtractT (xTileOff, yTileOff) <| mapT (\a -> a // 2) tileCounts
         basePosition = mapT (\a -> a // (-2)) <| mapT ((*) tileSize) tileCounts
-        xRange = [originX..(originX + (fst tileCounts) - 1)]
-        yRange = [originY..(originY + (snd tileCounts) - 1)]
         -- flip y's sign, elm treats co-ordinates sensible, OSM does not.
         pixelOffset = (128 - xPixelOff, 128 - yPixelOff)
         (winX, winY) = window
-        debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString (originX, originY) ++ ", centre: " ++ toString mapCenter
-        grid = cartesianProduct xRange yRange
-        tiles = L.map (step tileSize basePosition (originX, originY) pixelOffset) grid
+        debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString origin ++ ", centre: " ++ toString mapCenter
+        tiles = L.map (step tileSize basePosition origin pixelOffset) <| tileRange origin tileCounts
         drawTiles renderer = collage winX winY <| L.map (ttf renderer zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                    drawTiles debug,
                    container winX winY middle <| plainText <| debugInfo,
                    spacer winX winY ]
 
+tileRange : (Int, Int) -> (Int, Int) -> List (Int, Int)
+tileRange (originX, originY) (countX, countY) =
+    let range start size = [start..(start + size - 1)]
+    in cartesianProduct (range originX countX) (range originY countY)
 
 step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
 step tileSize basePosition origin pixelOff coord = 
