@@ -30,8 +30,9 @@ render rdr tileSize model =
         tiles = L.map (step tileSize origin) <| tileRange origin tileCounts
         drawTiles renderer = collage winX winY <| groupAndOffset basePosition pixelOffset <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
-                    drawTiles debug,
-                    spacer winX winY ]
+                   drawTiles debug,
+                   container winX winY middle <| plainText <| debugInfo,
+                   spacer winX winY ]
 
 groupAndOffset : (Int, Int) -> (Int, Int) -> List Form -> List Form
 groupAndOffset basePosition pixelOff forms = 
