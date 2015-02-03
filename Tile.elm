@@ -3,7 +3,7 @@ module Tile (Render, Model, Zoom(..), render) where
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, color, container, middle, layers, spacer)
-import List as L
+import List (map)
 import Text (plainText)
 import Tuple (..)
 
@@ -28,8 +28,8 @@ render rdr m =
         originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT tileRange originTileCoordinates tileCounts
-        tiles = L.map (makeTile m.tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
-        drawTiles renderer = (uncurry collage) m.window <| L.map (ttf renderer m.zoom m.tileSize) <| tiles
+        tiles = map (makeTile m.tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
+        drawTiles renderer = (uncurry collage) m.window <| map (ttf renderer m.zoom m.tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr), (uncurry spacer) m.window ]
 
 divAndRem : Int -> Int -> (Int, Int)
@@ -65,5 +65,5 @@ flipY t = (fst t, (-1) * snd t)
 cartesianProduct : List a -> List b -> List (a, b)
 cartesianProduct xs ys = 
     case xs of
-      z :: zs -> (cartesianProduct zs ys) ++ L.map ((,) z) ys
+      z :: zs -> (cartesianProduct zs ys) ++ map ((,) z) ys
       [] -> []
