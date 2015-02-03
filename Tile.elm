@@ -1,7 +1,7 @@
 module Tile (Render, Model, Zoom(..), render) where
 
 import Color (grey)
-import Graphics.Collage (Form, collage, group, move, toForm)
+import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, color, container, middle, layers, spacer)
 import List as L
 import Text (plainText)
@@ -27,27 +27,21 @@ render rdr tileSize model =
         pixelOffset = (128 - xPixelOff, 128 - yPixelOff)
         (winX, winY) = model.window
         debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString origin ++ ", centre: " ++ toString model.mapCenter
-        tiles = L.map (step tileSize origin) <| tileRange origin tileCounts
-        drawTiles renderer = collage winX winY <| groupAndOffset basePosition pixelOffset <| L.map (ttf renderer model.zoom tileSize) <| tiles
+        tiles = L.map (step tileSize basePosition origin pixelOffset) <| tileRange origin tileCounts
+        drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                    drawTiles debug,
                    container winX winY middle <| plainText <| debugInfo,
                    spacer winX winY ]
-
-groupAndOffset : (Int, Int) -> (Int, Int) -> List Form -> List Form
-groupAndOffset basePosition pixelOff forms = 
-    let uniform = group forms
-        offset = mapT toFloat <| flipY <| addT basePosition pixelOff
-    in [ move offset uniform ]  
 
 tileRange : (Int, Int) -> (Int, Int) -> List (Int, Int)
 tileRange (originX, originY) (countX, countY) =
     let range start size = [start..(start + size - 1)]
     in cartesianProduct (range originX countX) (range originY countY)
 
-step : Int -> (Int, Int) -> (Int, Int) -> Tile
-step tileSize origin coord = 
-    let position = flipY <| mapT ((*) tileSize) <| subtractT coord origin
+step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
+step tileSize basePosition origin pixelOff coord = 
+    let position = addT (flipY basePosition) <| addT (flipY pixelOff) <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
     in Tile coord position
 
 toOffset : Int -> Int -> (Int, Int)
