@@ -1,7 +1,7 @@
 module Osm (GeoPoint, centeredOn, convert, osm, simpleOsm, tileSize) where
 
 import Graphics.Element (Element, image)
-import Tile (Render, Zoom(..))
+import Tile (TileRenderer, Zoom(..))
 import Tuple (mapT)
 
 type alias TileOffset = { index: Int, pixel: Int }
@@ -18,7 +18,7 @@ centeredOn zoom geopt =
         ty = toOffset <| lat2tiley zoom geopt.lat
     in image tileSize tileSize <| osmUrl zoom (tx.index, ty.index)
 
-osm : Render
+osm : TileRenderer
 osm zoom size tile = image size size <| osmUrl zoom tile
 
 simpleOsm zoom tc = image tileSize tileSize <| osmUrl zoom tc

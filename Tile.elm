@@ -1,11 +1,11 @@
-module Tile (Render, Model, Zoom(..), render) where
+module Tile (Model, TileRenderer, Zoom(..), render) where
 
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, layers, spacer)
 import List (map)
 import Tuple (..)
 
-type alias Render = Zoom -> Int -> (Int, Int) -> Element
+type alias TileRenderer = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
 type alias Model = {
@@ -15,8 +15,8 @@ type alias Model = {
       mapCenter : (Int, Int)
 }
 
-render : Render -> Model -> Element
-render rdr m =
+render : TileRenderer -> Model -> Element
+render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window
         offsets = mapT (divAndRem m.tileSize) m.mapCenter
@@ -25,10 +25,10 @@ render rdr m =
         vid = flip (//)
         originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
-        tileRanges = mergeT tileRange originTileCoordinates tileCounts
+        tileRanges = mergeT range originTileCoordinates tileCounts
         tiles = map (makeTile m.tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
-        drawTiles renderer = (uncurry collage) m.window <| map (ttf renderer m.zoom m.tileSize) <| tiles
-     in layers <| [ drawTiles (wrap rdr), (uncurry spacer) m.window ]
+     in layers <| [ (uncurry collage) m.window <| map (renderAndMove renderer m.zoom m.tileSize) <| tiles,
+                    (uncurry spacer) m.window ]
 
 divAndRem : Int -> Int -> (Int, Int)
 divAndRem divisor dividend = 
@@ -36,8 +36,8 @@ divAndRem divisor dividend =
         remainder = dividend % divisor
     in (divides, remainder)
 
-tileRange : Int -> Int -> List Int
-tileRange origin count = [origin..(origin + count - 1)]
+range : Int -> Int -> List Int
+range origin count = [origin..(origin + count - 1)]
 
 type alias Tile = { point: (Int, Int), position: (Int, Int) }
 
@@ -47,15 +47,14 @@ makeTile tileSize originPixelOffsets originCoordinates pixelOffsets tileCoordina
         position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
     in Tile tileCoordinates position
 
+-- There is no need for the TileRenderer to know anything other than the tile's coordinate
+-- We provide 
 type alias InnerRender = (Zoom -> Int -> Tile -> Element)
 
-wrap : Render -> InnerRender
-wrap f = \z sz t -> f z sz t.point 
-
-ttf : InnerRender -> Zoom -> Int -> Tile -> Form
-ttf render zoom tileSize t =
+renderAndMove : TileRenderer -> Zoom -> Int -> Tile -> Form
+renderAndMove render zoom tileSize t =
     let d = mapT toFloat t.position
-    in move d <| toForm <| render zoom tileSize t
+    in move d <| toForm <| render zoom tileSize t.point
 
 flipY : (Int, Int) -> (Int, Int)
 flipY t = (fst t, (-1) * snd t)
