@@ -25,10 +25,10 @@ render rdr tileSize model =
         tileOffsets = mapT fst offsets
         vid = flip (//)
         originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
-        basePosition = mapT (vid -2) <| mapT ((*) tileSize) tileCounts
+        originPixelOffsets = mapT (vid -2) <| mapT ((*) tileSize) tileCounts
         tileRanges = mergeT tileRange originTileCoordinates tileCounts
         (winX, winY) = model.window
-        tiles = L.map (makeTile tileSize basePosition originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
+        tiles = L.map (makeTile tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
         drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                     spacer winX winY ]
@@ -45,8 +45,8 @@ tileRange origin count = [origin..(origin + count - 1)]
 type alias Tile = { point: (Int, Int), position: (Int, Int) }
 
 makeTile : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
-makeTile tileSize originOffsets originCoordinates pixelOffsets tileCoordinates =
-    let globalOffset = flipY <| addT originOffsets pixelOffsets 
+makeTile tileSize originPixelOffsets originCoordinates pixelOffsets tileCoordinates =
+    let globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
         position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
     in Tile tileCoordinates position
 
