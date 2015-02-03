@@ -7,7 +7,6 @@ import List as L
 import Text (plainText)
 import Tuple (..)
 
-type alias Tile = { point: (Int, Int), position: (Int, Int) }
 type alias Render = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
@@ -29,7 +28,7 @@ render rdr tileSize model =
         basePosition = mapT (vid -2) <| mapT ((*) tileSize) tileCounts
         tileRanges = mergeT tileRange originTileCoordinates tileCounts
         (winX, winY) = model.window
-        tiles = L.map (step tileSize basePosition originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
+        tiles = L.map (makeTile tileSize basePosition originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
         drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                     spacer winX winY ]
@@ -43,18 +42,18 @@ divAndRem divisor dividend =
 tileRange : Int -> Int -> List Int
 tileRange origin count = [origin..(origin + count - 1)]
 
-step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
-step tileSize originOffsets originCoordinates pixelOffsets tileCoordinates =
+type alias Tile = { point: (Int, Int), position: (Int, Int) }
+
+makeTile : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
+makeTile tileSize originOffsets originCoordinates pixelOffsets tileCoordinates =
     let globalOffset = flipY <| addT originOffsets pixelOffsets 
         position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
     in Tile tileCoordinates position
-
 
 type alias InnerRender = (Zoom -> Int -> Tile -> Element)
 
 wrap : Render -> InnerRender
 wrap f = \z sz t -> f z sz t.point 
-
 
 ttf : InnerRender -> Zoom -> Int -> Tile -> Form
 ttf render zoom tileSize t =
