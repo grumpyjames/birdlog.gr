@@ -30,13 +30,14 @@ render renderer m =
         originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT range originTileCoordinates tileCounts
-        tiles = map (makeTile m.tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
-     in layers <| [ (uncurry collage) m.window <| map doMove <| map (drawTile renderer m.zoom m.tileSize) tiles,
+        globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
+        tiles = map (tileRelativeTo originTileCoordinates m.tileSize) <| (uncurry cartesianProduct) tileRanges
+     in layers <| [ (uncurry collage) m.window <| map (doMove globalOffset) <| map (drawTile renderer m.zoom m.tileSize) tiles,
                     (uncurry spacer) m.window ]
 
-doMove : DrawnTile -> Form
-doMove drawnTile = 
-    let d = mapT toFloat drawnTile.positionOffset
+doMove : (Int, Int) -> DrawnTile -> Form
+doMove globalOffset drawnTile = 
+    let d = mapT toFloat <| addT globalOffset drawnTile.positionOffset
     in move d <| toForm drawnTile.el
 
 drawTile : TileRenderer -> Zoom -> Int -> Tile -> DrawnTile
@@ -51,10 +52,9 @@ divAndRem divisor dividend =
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
 
-makeTile : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
-makeTile tileSize originPixelOffsets originCoordinates pixelOffsets tileCoordinates =
-    let globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
-        position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
+tileRelativeTo : (Int, Int) -> Int -> (Int, Int) -> Tile
+tileRelativeTo originCoordinates tileSize tileCoordinates =
+    let position = flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
     in Tile tileCoordinates position
 
 flipY : (Int, Int) -> (Int, Int)
