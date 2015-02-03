@@ -11,27 +11,26 @@ type alias Render = Zoom -> Int -> (Int, Int) -> Element
 type Zoom = Zoom Int
 
 type alias Model = {
+      tileSize : Int,
       zoom : Zoom,
       window : (Int, Int),
       mapCenter : (Int, Int)
 }
 
-render : Render -> Int -> Model -> Element
-render rdr tileSize model =
-    let requiredTiles dim = (3 * tileSize + dim) // tileSize
-        tileCounts = mapT requiredTiles model.window
-        offsets = mapT (divAndRem tileSize) model.mapCenter
+render : Render -> Model -> Element
+render rdr m =
+    let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
+        tileCounts = mapT requiredTiles m.window
+        offsets = mapT (divAndRem m.tileSize) m.mapCenter
         pixelOffsets = (128, 128) `subtractT` (mapT snd offsets)
         tileOffsets = mapT fst offsets
         vid = flip (//)
         originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
-        originPixelOffsets = mapT (vid -2) <| mapT ((*) tileSize) tileCounts
+        originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT tileRange originTileCoordinates tileCounts
-        (winX, winY) = model.window
-        tiles = L.map (makeTile tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
-        drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
-     in layers <| [ drawTiles (wrap rdr),
-                    spacer winX winY ]
+        tiles = L.map (makeTile m.tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
+        drawTiles renderer = (uncurry collage) m.window <| L.map (ttf renderer m.zoom m.tileSize) <| tiles
+     in layers <| [ drawTiles (wrap rdr), (uncurry spacer) m.window ]
 
 divAndRem : Int -> Int -> (Int, Int)
 divAndRem divisor dividend = 

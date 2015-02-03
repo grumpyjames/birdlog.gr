@@ -11,5 +11,5 @@ import Window
 main = 
     let mapCenter = S.map (addT (16 * tileSize, 7 * tileSize)) <| S.map (multiplyT (-1, 1)) movement
         zoom = S.constant (Zoom 5)
-        draw = render osm tileSize
-    in S.map draw <| S.map3 Model zoom Window.dimensions mapCenter
+        draw = render osm
+    in S.map draw <| S.map3 (Model tileSize) zoom Window.dimensions mapCenter
