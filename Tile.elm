@@ -16,8 +16,9 @@ type alias Model = {
 }
 
 
-type alias Tile = { point: (Int, Int), position: (Int, Int) }
-type alias DrawnTile = { el: Element, positionOffset: (Int, Int) }
+type alias Tile = { coordinate : (Int, Int) }
+type alias Position = { pixels : (Int, Int) }
+type alias DrawnTile = { el: Element, tile: Tile }
 
 render : TileRenderer -> Model -> Element
 render renderer m =
@@ -31,17 +32,25 @@ render renderer m =
         originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT range originTileCoordinates tileCounts
         globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
-        tiles = map (tileRelativeTo originTileCoordinates m.tileSize) <| (uncurry cartesianProduct) tileRanges
-     in layers <| [ (uncurry collage) m.window <| map (doMove globalOffset) <| map (drawTile renderer m.zoom m.tileSize) tiles,
+        tiles = map Tile <| (uncurry cartesianProduct) tileRanges
+        offsetFromTile = relativeTilePosition m.tileSize (Tile originTileCoordinates)
+     in layers <| [ (uncurry collage) m.window <| map (doMove globalOffset offsetFromTile) <| map (drawTile renderer m.zoom m.tileSize) tiles,
                     (uncurry spacer) m.window ]
 
-doMove : (Int, Int) -> DrawnTile -> Form
-doMove globalOffset drawnTile = 
-    let d = mapT toFloat <| addT globalOffset drawnTile.positionOffset
+relativeTilePosition : Int -> Tile -> Tile -> Position
+relativeTilePosition tileSize originTile tile = 
+    let relativeTile = tile.coordinate `subtractT` originTile.coordinate
+        position = flipY <| mapT ((*) tileSize) <| relativeTile
+    in Position position
+
+doMove : (Int, Int) -> (Tile -> Position) -> DrawnTile -> Form
+doMove globalOffset offsetter drawnTile = 
+    let tileSpecificOffset = offsetter drawnTile.tile
+        d = mapT toFloat <| addT globalOffset tileSpecificOffset.pixels
     in move d <| toForm drawnTile.el
 
 drawTile : TileRenderer -> Zoom -> Int -> Tile -> DrawnTile
-drawTile r z tileSize t = DrawnTile (r z tileSize t.point) t.position
+drawTile r z tileSize t = DrawnTile (r z tileSize t.coordinate) t
 
 divAndRem : Int -> Int -> (Int, Int)
 divAndRem divisor dividend = 
@@ -51,11 +60,6 @@ divAndRem divisor dividend =
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
-
-tileRelativeTo : (Int, Int) -> Int -> (Int, Int) -> Tile
-tileRelativeTo originCoordinates tileSize tileCoordinates =
-    let position = flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
-    in Tile tileCoordinates position
 
 flipY : (Int, Int) -> (Int, Int)
 flipY t = (fst t, (-1) * snd t)
