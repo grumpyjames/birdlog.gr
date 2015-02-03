@@ -64,26 +64,6 @@ ttf render zoom tileSize t =
 flipY : (Int, Int) -> (Int, Int)
 flipY t = (fst t, (-1) * snd t)
 
-sgn a = if a > 0 then 1 else (if a < 0 then -1 else 0) 
-
-applyCenter tileOff pixelOff tile = { point = addT tileOff tile.point, position = addT pixelOff tile.position }
-
-debug : InnerRender
-debug zoom sz tile = container sz sz middle <| plainText <| toString tile.point ++ "\n" ++ toString tile.position
-
--- given a tile size, and an amount of movement in pixels, give a tile offset by which to move everything
--- wraps give the number of tiles that should wrap, the remainder gives the actual pixel movement.
-offset : Int -> (Int, Int) -> Tile
-offset tileSize (x, y)  = 
-    let wraps t = (0 - t) // tileSize
-        pos t = (*) (sgn t) <| (abs t) % tileSize
-    in Tile (wraps x, wraps (-y)) (pos x, pos y)
-
-coords : Int -> Int -> List (Int, Int)
-coords xc yc = 
-    let coordRange t = [0..t]
-    in cartesianProduct (coordRange xc) (coordRange yc)
-
 cartesianProduct : List a -> List b -> List (a, b)
 cartesianProduct xs ys = 
     case xs of
