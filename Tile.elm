@@ -22,10 +22,10 @@ render rdr tileSize model =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
         tileCounts = mapT requiredTiles model.window
         offsets = mapT (divAndRem tileSize) model.mapCenter
-        pixelOffsets = subtractT (128, 128) <| mapT snd offsets
+        pixelOffsets = (128, 128) `subtractT` (mapT snd offsets)
         tileOffsets = mapT fst offsets
         vid a b = b // a
-        originTileCoordinates = subtractT tileOffsets <| mapT (vid 2) tileCounts
+        originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         basePosition = mapT (vid -2) <| mapT ((*) tileSize) tileCounts
         tileRanges = mergeT tileRange originTileCoordinates tileCounts
         (winX, winY) = model.window
@@ -44,10 +44,10 @@ tileRange : Int -> Int -> List Int
 tileRange origin count = [origin..(origin + count - 1)]
 
 step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
-step tileSize basePosition origin pixelOff coord =
-    let globalOffset = flipY <| addT basePosition pixelOff 
-        position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
-    in Tile coord position
+step tileSize originOffsets originCoordinates pixelOffsets tileCoordinates =
+    let globalOffset = flipY <| addT originOffsets pixelOffsets 
+        position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
+    in Tile tileCoordinates position
 
 
 type alias InnerRender = (Zoom -> Int -> Tile -> Element)
