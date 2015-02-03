@@ -34,8 +34,12 @@ render renderer m =
         globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
         tiles = map Tile <| (uncurry cartesianProduct) tileRanges
         offsetFromTile = relativeTilePosition m.tileSize (Tile originTileCoordinates)
-     in layers <| [ (uncurry collage) m.window <| map (doMove globalOffset offsetFromTile) <| map (drawTile renderer m.zoom m.tileSize) tiles,
+        draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
+     in layers <| [ (uncurry collage) m.window <| map draw tiles,
                     (uncurry spacer) m.window ]
+
+chain : (a -> b) -> (a -> b -> c) -> a -> c
+chain f g = \a -> g a (f a)
 
 relativeTilePosition : Int -> Tile -> Tile -> Position
 relativeTilePosition tileSize originTile tile = 
@@ -43,14 +47,14 @@ relativeTilePosition tileSize originTile tile =
         position = flipY <| mapT ((*) tileSize) <| relativeTile
     in Position position
 
-doMove : (Int, Int) -> (Tile -> Position) -> DrawnTile -> Form
-doMove globalOffset offsetter drawnTile = 
-    let tileSpecificOffset = offsetter drawnTile.tile
-        d = mapT toFloat <| addT globalOffset tileSpecificOffset.pixels
-    in move d <| toForm drawnTile.el
-
-drawTile : TileRenderer -> Zoom -> Int -> Tile -> DrawnTile
-drawTile r z tileSize t = DrawnTile (r z tileSize t.coordinate) t
+doMove : (Int, Int) -> (Tile -> Position) -> Tile -> Element -> Form
+doMove globalOffset offsetter tile element =
+    let tileSpecificOffset = offsetter tile
+        distance = mapT toFloat <| addT globalOffset tileSpecificOffset.pixels
+    in move distance <| toForm element
+    
+drawTile : TileRenderer -> Zoom -> Int -> Tile -> Element
+drawTile r z tileSize t = r z tileSize t.coordinate
 
 divAndRem : Int -> Int -> (Int, Int)
 divAndRem divisor dividend = 
