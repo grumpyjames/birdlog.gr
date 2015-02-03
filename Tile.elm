@@ -2,9 +2,8 @@ module Tile (Render, Model, Zoom(..), render) where
 
 import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
-import Graphics.Element (Element, color, container, middle, layers, spacer)
+import Graphics.Element (Element, layers, spacer)
 import List (map)
-import Text (plainText)
 import Tuple (..)
 
 type alias Render = Zoom -> Int -> (Int, Int) -> Element
