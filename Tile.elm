@@ -15,6 +15,10 @@ type alias Model = {
       mapCenter : (Int, Int)
 }
 
+
+type alias Tile = { point: (Int, Int), position: (Int, Int) }
+type alias DrawnTile = { el: Element, positionOffset: (Int, Int) }
+
 render : TileRenderer -> Model -> Element
 render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
@@ -27,8 +31,16 @@ render renderer m =
         originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT range originTileCoordinates tileCounts
         tiles = map (makeTile m.tileSize originPixelOffsets originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
-     in layers <| [ (uncurry collage) m.window <| map (renderAndMove renderer m.zoom m.tileSize) <| tiles,
+     in layers <| [ (uncurry collage) m.window <| map doMove <| map (drawTile renderer m.zoom m.tileSize) tiles,
                     (uncurry spacer) m.window ]
+
+doMove : DrawnTile -> Form
+doMove drawnTile = 
+    let d = mapT toFloat drawnTile.positionOffset
+    in move d <| toForm drawnTile.el
+
+drawTile : TileRenderer -> Zoom -> Int -> Tile -> DrawnTile
+drawTile r z tileSize t = DrawnTile (r z tileSize t.point) t.position
 
 divAndRem : Int -> Int -> (Int, Int)
 divAndRem divisor dividend = 
@@ -38,8 +50,6 @@ divAndRem divisor dividend =
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
-
-type alias Tile = { point: (Int, Int), position: (Int, Int) }
 
 makeTile : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
 makeTile tileSize originPixelOffsets originCoordinates pixelOffsets tileCoordinates =
