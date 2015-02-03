@@ -57,15 +57,6 @@ makeTile tileSize originPixelOffsets originCoordinates pixelOffsets tileCoordina
         position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| tileCoordinates `subtractT` originCoordinates
     in Tile tileCoordinates position
 
--- There is no need for the TileRenderer to know anything other than the tile's coordinate
--- We provide 
-type alias InnerRender = (Zoom -> Int -> Tile -> Element)
-
-renderAndMove : TileRenderer -> Zoom -> Int -> Tile -> Form
-renderAndMove render zoom tileSize t =
-    let d = mapT toFloat t.position
-    in move d <| toForm <| render zoom tileSize t.point
-
 flipY : (Int, Int) -> (Int, Int)
 flipY t = (fst t, (-1) * snd t)
 
