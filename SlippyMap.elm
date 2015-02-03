@@ -7,7 +7,7 @@ import Tile (Model, Zoom(..), render)
 import Tuple (..)
 import Window
 
--- 'inverted' mouse, but elm's y and osms are opposite. Do the remaining flips in `step`
+-- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
 main = 
     let mapCenter = S.map (multiplyT (-1, 1)) movement
         zoom = S.constant (Zoom 5)
