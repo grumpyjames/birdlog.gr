@@ -21,16 +21,22 @@ render : Render -> Int -> Model -> Element
 render rdr tileSize model =
     let requiredTiles dim = (3 * tileSize + dim) // tileSize
         tileCounts = mapT requiredTiles model.window
-        ((xTileOff, xPixelOff), (yTileOff, yPixelOff)) = mapT (toOffset tileSize) model.mapCenter
-        origin = subtractT (xTileOff, yTileOff) <| mapT (\a -> a // 2) tileCounts
+        offsets = mapT (divAndRem tileSize) model.mapCenter
+        pixelOffsets = subtractT (128, 128) <| mapT snd offsets
+        tileOffsets = mapT fst offsets              
+        originTileCoordinates = subtractT tileOffsets <| mapT (\a -> a // 2) tileCounts
         basePosition = mapT (\a -> a // (-2)) <| mapT ((*) tileSize) tileCounts
-        pixelOffset = (128 - xPixelOff, 128 - yPixelOff)
         (winX, winY) = model.window
-        debugInfo = "basePosition: " ++ toString basePosition ++ ", originTile: " ++ toString origin ++ ", centre: " ++ toString model.mapCenter
-        tiles = L.map (step tileSize basePosition origin pixelOffset) <| tileRange origin tileCounts
+        tiles = L.map (step tileSize basePosition originTileCoordinates pixelOffsets) <| tileRange originTileCoordinates tileCounts
         drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                     spacer winX winY ]
+
+divAndRem : Int -> Int -> (Int, Int)
+divAndRem divisor dividend = 
+    let divides = dividend // divisor
+        remainder = dividend % divisor
+    in (divides, remainder)
 
 tileRange : (Int, Int) -> (Int, Int) -> List (Int, Int)
 tileRange (originX, originY) (countX, countY) =
@@ -41,12 +47,6 @@ step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
 step tileSize basePosition origin pixelOff coord = 
     let position = addT (flipY basePosition) <| addT (flipY pixelOff) <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
     in Tile coord position
-
-toOffset : Int -> Int -> (Int, Int)
-toOffset tileSize coord = 
-    let index = coord // tileSize
-        pixel = coord - (index * tileSize)
-    in ( index, pixel )
 
 
 type alias InnerRender = (Zoom -> Int -> Tile -> Element)
