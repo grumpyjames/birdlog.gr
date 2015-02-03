@@ -1,6 +1,5 @@
 module Tile (Render, Model, Zoom(..), render) where
 
-import Color (grey)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, layers, spacer)
 import List (map)
