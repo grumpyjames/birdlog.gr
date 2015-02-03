@@ -44,8 +44,9 @@ tileRange : Int -> Int -> List Int
 tileRange origin count = [origin..(origin + count - 1)]
 
 step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
-step tileSize basePosition origin pixelOff coord = 
-    let position = addT (flipY basePosition) <| addT (flipY pixelOff) <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
+step tileSize basePosition origin pixelOff coord =
+    let globalOffset = flipY <| addT basePosition pixelOff 
+        position = addT globalOffset <| flipY <| mapT ((*) tileSize) <| subtractT coord origin
     in Tile coord position
 
 
