@@ -18,7 +18,6 @@ type alias Model = {
 
 type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }
-type alias DrawnTile = { el: Element, tile: Tile }
 
 render : TileRenderer -> Model -> Element
 render renderer m =
@@ -28,12 +27,12 @@ render renderer m =
         pixelOffsets = (128, 128) `subtractT` (mapT snd offsets)
         tileOffsets = mapT fst offsets
         vid = flip (//)
-        originTileCoordinates = tileOffsets `subtractT` (mapT (vid 2) tileCounts)
+        originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
-        tileRanges = mergeT range originTileCoordinates tileCounts
+        tileRanges = mergeT range originTile.coordinate tileCounts
         globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
         tiles = map Tile <| (uncurry cartesianProduct) tileRanges
-        offsetFromTile = relativeTilePosition m.tileSize (Tile originTileCoordinates)
+        offsetFromTile = relativeTilePosition m.tileSize originTile
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
      in layers <| [ (uncurry collage) m.window <| map draw tiles,
                     (uncurry spacer) m.window ]
