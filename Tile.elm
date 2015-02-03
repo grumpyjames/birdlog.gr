@@ -27,8 +27,9 @@ render rdr tileSize model =
         vid a b = b // a
         originTileCoordinates = subtractT tileOffsets <| mapT (vid 2) tileCounts
         basePosition = mapT (vid -2) <| mapT ((*) tileSize) tileCounts
+        tileRanges = mergeT tileRange originTileCoordinates tileCounts
         (winX, winY) = model.window
-        tiles = L.map (step tileSize basePosition originTileCoordinates pixelOffsets) <| tileRange originTileCoordinates tileCounts
+        tiles = L.map (step tileSize basePosition originTileCoordinates pixelOffsets) <| (uncurry cartesianProduct) tileRanges
         drawTiles renderer = collage winX winY <| L.map (ttf renderer model.zoom tileSize) <| tiles
      in layers <| [ drawTiles (wrap rdr),
                     spacer winX winY ]
@@ -39,10 +40,8 @@ divAndRem divisor dividend =
         remainder = dividend % divisor
     in (divides, remainder)
 
-tileRange : (Int, Int) -> (Int, Int) -> List (Int, Int)
-tileRange (originX, originY) (countX, countY) =
-    let range start size = [start..(start + size - 1)]
-    in cartesianProduct (range originX countX) (range originY countY)
+tileRange : Int -> Int -> List Int
+tileRange origin count = [origin..(origin + count - 1)]
 
 step : Int -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Tile
 step tileSize basePosition origin pixelOff coord = 
