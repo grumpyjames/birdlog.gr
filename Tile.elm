@@ -24,18 +24,32 @@ render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window
         offsets = mapT (divAndRem m.tileSize) m.mapCenter
-        pixelOffsets = (128, 128) `subtractT` (mapT snd offsets)
+        pixelOffsets = Position <| (128, 128) `subtractT` (mapT snd offsets)
         tileOffsets = mapT fst offsets
         vid = flip (//)
         originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
-        originPixelOffsets = mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
+        originPixelOffsets = Position <| mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT range originTile.coordinate tileCounts
-        globalOffset = flipY <| addT originPixelOffsets pixelOffsets 
+        globalOffset = (lift1 flipY) <| addP originPixelOffsets pixelOffsets 
         tiles = map Tile <| (uncurry cartesianProduct) tileRanges
         offsetFromTile = relativeTilePosition m.tileSize originTile
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
      in layers <| [ (uncurry collage) m.window <| map draw tiles,
                     (uncurry spacer) m.window ]
+
+type alias F1 a = a -> a
+type alias F2 a = a -> a -> a 
+
+addP = lift2 addT
+
+lift1 : (F1 (Int, Int)) -> (F1 Position)
+lift1 g = \p -> Position <| g p.pixels
+
+lift2 : (F2 (Int, Int)) -> (F2 Position)
+lift2 g = \p1 p2 -> Position <| g p1.pixels p2.pixels
+
+flipY : (Int, Int) -> (Int, Int)
+flipY t = (fst t, (-1) * snd t)
 
 chain : (a -> b) -> (a -> b -> c) -> a -> c
 chain f g = \a -> g a (f a)
@@ -46,11 +60,11 @@ relativeTilePosition tileSize originTile tile =
         position = flipY <| mapT ((*) tileSize) <| relativeTile
     in Position position
 
-doMove : (Int, Int) -> (Tile -> Position) -> Tile -> Element -> Form
+doMove : Position -> (Tile -> Position) -> Tile -> Element -> Form
 doMove globalOffset offsetter tile element =
     let tileSpecificOffset = offsetter tile
-        distance = mapT toFloat <| addT globalOffset tileSpecificOffset.pixels
-    in move distance <| toForm element
+        distance = addP globalOffset tileSpecificOffset
+    in move (mapT toFloat distance.pixels) <| toForm element
     
 drawTile : TileRenderer -> Zoom -> Int -> Tile -> Element
 drawTile r z tileSize t = r z tileSize t.coordinate
@@ -63,9 +77,6 @@ divAndRem divisor dividend =
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
-
-flipY : (Int, Int) -> (Int, Int)
-flipY t = (fst t, (-1) * snd t)
 
 cartesianProduct : List a -> List b -> List (a, b)
 cartesianProduct xs ys = 
