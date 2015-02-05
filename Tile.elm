@@ -21,12 +21,12 @@ type alias Position = { pixels : (Int, Int) }
 
 render : TileRenderer -> Model -> Element
 render renderer m =
-    let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
+    let vid = flip (//)
+        mer = flip (%)
+        requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window
-        offsets = mapT (divAndRem m.tileSize) m.mapCenter
-        pixelOffsets = Position <| (128, 128) `subtractT` (mapT snd offsets)
-        tileOffsets = mapT fst offsets
-        vid = flip (//)
+        pixelOffsets = Position <| (128, 128) `subtractT` (mapT (mer m.tileSize) m.mapCenter)
+        tileOffsets = mapT (vid m.tileSize) m.mapCenter
         originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         originPixelOffsets = Position <| mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         globalOffset = (lift1 flipY) <| addP originPixelOffsets pixelOffsets 
@@ -66,9 +66,6 @@ doMove globalOffset offsetter tile element =
     
 drawTile : TileRenderer -> Zoom -> Int -> Tile -> Element
 drawTile r z tileSize t = r z tileSize t.coordinate
-
-divAndRem : Int -> Int -> (Int, Int)
-divAndRem divisor dividend = (dividend // divisor, dividend % divisor)
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
