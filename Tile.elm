@@ -12,7 +12,7 @@ type alias Model = {
       tileSize : Int,
       zoom : Zoom,
       window : (Int, Int),
-      mapCenter : (Int, Int)
+      mapCentre : (Int, Int)
 }
 
 
@@ -23,17 +23,17 @@ render : TileRenderer -> Model -> Element
 render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window        
-        globalOffset = Position <| globalPixelOffset m.tileSize tileCounts m.mapCenter
-        centerTile = mapT (vid m.tileSize) m.mapCenter
-        originTile = Tile <| centerTile `subtractT` (mapT (vid 2) tileCounts)
+        globalOffset = Position <| globalPixelOffset m.tileSize tileCounts m.mapCentre
+        centreTile = mapT (vid m.tileSize) m.mapCentre
+        originTile = Tile <| centreTile `subtractT` (mapT (vid 2) tileCounts)
         tiles = cartesianProduct <| mergeT range originTile.coordinate tileCounts
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize originTile globalOffset) 
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
                     (uncurry spacer) m.window ]
 
 globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> (Int, Int)
-globalPixelOffset tileSize tileCounts mapCenter =
-    let pixelOffsets = (128, 128) `subtractT` (mapT (mer tileSize) mapCenter)
+globalPixelOffset tileSize tileCounts mapCentre =
+    let pixelOffsets = (128, 128) `subtractT` (mapT (mer tileSize) mapCentre)
         originPixelOffsets = mapT (\a -> (a * tileSize) // -2) tileCounts
     in flipY <| addT originPixelOffsets pixelOffsets 
 
