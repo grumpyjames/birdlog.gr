@@ -29,9 +29,8 @@ render renderer m =
         vid = flip (//)
         originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         originPixelOffsets = Position <| mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
-        tileRanges = mergeT range originTile.coordinate tileCounts
         globalOffset = (lift1 flipY) <| addP originPixelOffsets pixelOffsets 
-        tiles = (uncurry cartesianProduct) tileRanges
+        tiles = (uncurry cartesianProduct) <| mergeT range originTile.coordinate tileCounts
         offsetFromTile = relativeTilePosition m.tileSize originTile
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
@@ -70,10 +69,7 @@ drawTile : TileRenderer -> Zoom -> Int -> Tile -> Element
 drawTile r z tileSize t = r z tileSize t.coordinate
 
 divAndRem : Int -> Int -> (Int, Int)
-divAndRem divisor dividend = 
-    let divides = dividend // divisor
-        remainder = dividend % divisor
-    in (divides, remainder)
+divAndRem divisor dividend = (dividend // divisor, dividend % divisor)
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
