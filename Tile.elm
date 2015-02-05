@@ -22,10 +22,8 @@ type alias Position = { pixels : (Int, Int) }
 render : TileRenderer -> Model -> Element
 render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
-        tileCounts = mapT requiredTiles m.window
-        pixelOffsets = Position <| (128, 128) `subtractT` (mapT (mer m.tileSize) m.mapCenter)
-        originPixelOffsets = Position <| mapT (\a -> (a * m.tileSize) // -2) tileCounts
-        globalOffset = flipP <| addP originPixelOffsets pixelOffsets 
+        tileCounts = mapT requiredTiles m.window        
+        globalOffset = globalPixelOffset m.tileSize tileCounts m.mapCenter
         tileOffsets = mapT (vid m.tileSize) m.mapCenter
         originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         tiles = cartesianProduct <| mergeT range originTile.coordinate tileCounts
@@ -34,13 +32,19 @@ render renderer m =
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
                     (uncurry spacer) m.window ]
 
+-- how far should the canvas be moved to make the requested center point the center of the browser?
+globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> Position
+globalPixelOffset tileSize tileCounts mapCenter =
+    let pixelOffsets = (128, 128) `subtractT` (mapT (mer tileSize) mapCenter)
+        originPixelOffsets = mapT (\a -> (a * tileSize) // -2) tileCounts
+    in Position <| flipY <| addT originPixelOffsets pixelOffsets 
+
 type alias F1 a = a -> a
 type alias F2 a = a -> a -> a 
 
 addP = lift2 addT
 vid = flip (//)
 mer = flip (%)
-flipP = lift1 flipY        
 
 lift1 : (F1 (Int, Int)) -> (F1 Position)
 lift1 g = \p -> Position <| g p.pixels
