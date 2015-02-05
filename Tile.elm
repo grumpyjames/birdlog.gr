@@ -23,20 +23,19 @@ render : TileRenderer -> Model -> Element
 render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window        
-        globalOffset = globalPixelOffset m.tileSize tileCounts m.mapCenter
+        globalOffset = Position <| globalPixelOffset m.tileSize tileCounts m.mapCenter
         tileOffsets = mapT (vid m.tileSize) m.mapCenter
         originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
         tiles = cartesianProduct <| mergeT range originTile.coordinate tileCounts
-        offsetFromTile = relativeTilePosition m.tileSize originTile
-        draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
+        draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize originTile globalOffset) 
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
                     (uncurry spacer) m.window ]
 
-globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> Position
+globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> (Int, Int)
 globalPixelOffset tileSize tileCounts mapCenter =
     let pixelOffsets = (128, 128) `subtractT` (mapT (mer tileSize) mapCenter)
         originPixelOffsets = mapT (\a -> (a * tileSize) // -2) tileCounts
-    in Position <| flipY <| addT originPixelOffsets pixelOffsets 
+    in flipY <| addT originPixelOffsets pixelOffsets 
 
 type alias F1 a = a -> a
 type alias F2 a = a -> a -> a 
@@ -62,9 +61,9 @@ relativeTilePosition tileSize originTile tile =
         position = flipY <| mapT ((*) tileSize) <| relativeTile
     in Position position
 
-doMove : Position -> (Tile -> Position) -> Tile -> Element -> Form
-doMove globalOffset offsetter tile element =
-    let tileSpecificOffset = offsetter tile
+doMove : Int -> Tile -> Position -> Tile -> Element -> Form
+doMove tileSize originTile globalOffset tile element =
+    let tileSpecificOffset = relativeTilePosition tileSize originTile tile
         distance = addP globalOffset tileSpecificOffset
     in move (mapT toFloat distance.pixels) <| toForm element
     
