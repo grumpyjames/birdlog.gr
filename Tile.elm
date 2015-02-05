@@ -21,16 +21,14 @@ type alias Position = { pixels : (Int, Int) }
 
 render : TileRenderer -> Model -> Element
 render renderer m =
-    let vid = flip (//)
-        mer = flip (%)
-        requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
+    let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window
         pixelOffsets = Position <| (128, 128) `subtractT` (mapT (mer m.tileSize) m.mapCenter)
+        originPixelOffsets = Position <| mapT (\a -> (a * m.tileSize) // -2) tileCounts
+        globalOffset = flipP <| addP originPixelOffsets pixelOffsets 
         tileOffsets = mapT (vid m.tileSize) m.mapCenter
         originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
-        originPixelOffsets = Position <| mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
-        globalOffset = (lift1 flipY) <| addP originPixelOffsets pixelOffsets 
-        tiles = (uncurry cartesianProduct) <| mergeT range originTile.coordinate tileCounts
+        tiles = cartesianProduct <| mergeT range originTile.coordinate tileCounts
         offsetFromTile = relativeTilePosition m.tileSize originTile
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
@@ -40,6 +38,9 @@ type alias F1 a = a -> a
 type alias F2 a = a -> a -> a 
 
 addP = lift2 addT
+vid = flip (//)
+mer = flip (%)
+flipP = lift1 flipY        
 
 lift1 : (F1 (Int, Int)) -> (F1 Position)
 lift1 g = \p -> Position <| g p.pixels
@@ -70,8 +71,8 @@ drawTile r z tileSize t = r z tileSize t.coordinate
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
 
-cartesianProduct : List a -> List b -> List (a, b)
-cartesianProduct xs ys = 
+cartesianProduct : (List a, List b) -> List (a, b)
+cartesianProduct (xs,ys) = 
     case xs of
-      z :: zs -> (cartesianProduct zs ys) ++ map ((,) z) ys
+      z :: zs -> (cartesianProduct (zs,ys)) ++ map ((,) z) ys
       [] -> []
