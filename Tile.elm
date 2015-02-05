@@ -31,10 +31,10 @@ render renderer m =
         originPixelOffsets = Position <| mapT (vid -2) <| mapT ((*) m.tileSize) tileCounts
         tileRanges = mergeT range originTile.coordinate tileCounts
         globalOffset = (lift1 flipY) <| addP originPixelOffsets pixelOffsets 
-        tiles = map Tile <| (uncurry cartesianProduct) tileRanges
+        tiles = (uncurry cartesianProduct) tileRanges
         offsetFromTile = relativeTilePosition m.tileSize originTile
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove globalOffset offsetFromTile) 
-     in layers <| [ (uncurry collage) m.window <| map draw tiles,
+     in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
                     (uncurry spacer) m.window ]
 
 type alias F1 a = a -> a
