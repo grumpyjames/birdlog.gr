@@ -24,8 +24,8 @@ render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles m.window        
         globalOffset = Position <| globalPixelOffset m.tileSize tileCounts m.mapCenter
-        tileOffsets = mapT (vid m.tileSize) m.mapCenter
-        originTile = Tile <| tileOffsets `subtractT` (mapT (vid 2) tileCounts)
+        centerTile = mapT (vid m.tileSize) m.mapCenter
+        originTile = Tile <| centerTile `subtractT` (mapT (vid 2) tileCounts)
         tiles = cartesianProduct <| mergeT range originTile.coordinate tileCounts
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize originTile globalOffset) 
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
