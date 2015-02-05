@@ -47,8 +47,7 @@ lift1 g = \p -> Position <| g p.pixels
 lift2 : (F2 (Int, Int)) -> (F2 Position)
 lift2 g = \p1 p2 -> Position <| g p1.pixels p2.pixels
 
-flipY : (Int, Int) -> (Int, Int)
-flipY t = (fst t, (-1) * snd t)
+flipY = multiplyT (1, -1)
 
 chain : (a -> b) -> (a -> b -> c) -> a -> c
 chain f g = \a -> g a (f a)
