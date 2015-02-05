@@ -32,7 +32,6 @@ render renderer m =
      in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
                     (uncurry spacer) m.window ]
 
--- how far should the canvas be moved to make the requested center point the center of the browser?
 globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> Position
 globalPixelOffset tileSize tileCounts mapCenter =
     let pixelOffsets = (128, 128) `subtractT` (mapT (mer tileSize) mapCenter)
