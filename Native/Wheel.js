@@ -12,16 +12,15 @@ My.Native.Wheel.make = function(localRuntime) {
     var Signal =  Elm.Signal.make(localRuntime);
     var Utils = Elm.Native.Utils.make(localRuntime);
 
-    function pixelComp(size) {
-        return {ctor: 'Component', _0: size, _1: {ctor: 'Pixel'}};
-    }
-
-    var zeroC = pixelComp(0.0);
-    var wheel = Signal.constant({ ctor:'Wheel', _0: zeroC, _1: zeroC, _2: zeroC});
+    var unitConstructors = ['Pixel', 'Line', 'Page']
+    var wheel = Signal.constant({ ctor:'Wheel', _0: 0.0, _1: 0.0, _2: 0.0, _3: unitConstructors[0]});
     var node = localRuntime.isFullscreen() ? document : localRuntime.node;
 
-    localRuntime.addListener([wheel.id], node, 'wheel', function (wheelEvent) {
-        localRuntime.notify(wheel.id, { ctor:'Wheel', _0: pixelComp(3.0), _1: zeroC, _2: zeroC});
+    localRuntime.addListener([wheel.id], node, 'wheel', function (event) {
+        var unit = unitConstructors[event.deltaMode];
+        if (unit) {
+            localRuntime.notify(wheel.id, { ctor:'Wheel', _0: event.deltaX, _1: event.deltaY, _2: event.deltaZ, _3: unitConstructors[0]});
+        }
     });
 
     return localRuntime.Native.Wheel.values = {

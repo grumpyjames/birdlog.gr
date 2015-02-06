@@ -1,4 +1,4 @@
-module Wheel (Wheel, Component, Unit(..), main) where
+module Wheel (Wheel, Unit(..), main) where
 
 import Graphics.Element (Element)
 import Native.Wheel
@@ -8,10 +8,10 @@ import Text (plainText)
 main = map (plainText << toString) Native.Wheel.wheel
 
 type Unit = Pixel | Line | Page
-type Component = Component Float Unit
 type alias Wheel = {
-      deltaX : Component,
-      deltaY : Component,
-      deltaZ : Component
+      deltaX : Float,
+      deltaY : Float,
+      deltaZ : Float,
+      unit: Unit
 }
 
