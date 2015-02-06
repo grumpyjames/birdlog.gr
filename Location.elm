@@ -1,13 +1,15 @@
 import Color (red)
 import Graphics.Element (Element, color, container, empty, layers, opacity, topLeft)
-import Native.Location (convert, location)
+import Native.Location (location)
 import Osm (GeoPoint, convert, simpleOsm)
 import Signal (map)
 import Text (plainText)
 import Tile (Zoom(..))
 import Tuple (mapT)
 
-main = map show Native.Location.location
+location = Native.Location.location
+
+main = map show location
 
 show : LocationResponse -> Element
 show lr =

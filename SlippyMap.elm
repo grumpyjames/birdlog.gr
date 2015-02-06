@@ -5,6 +5,7 @@ import Osm (osm, tileSize)
 import Signal as S
 import Tile (Model, Zoom(..), render)
 import Tuple (..)
+import Wheel (wheel)
 import Window
 
 -- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
