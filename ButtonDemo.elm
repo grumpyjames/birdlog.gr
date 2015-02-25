@@ -17,7 +17,7 @@ upC = rgb 111 111 111
 ourButton : Message -> String -> Element
 ourButton msg txt = 
     let el = plainText txt
-        cn = layers [container 30 30 middle el, spacer 30 30]
+        cn = container 30 30 middle el
         up = color upC cn
         down = color downC cn
         hover = color hoverC cn
