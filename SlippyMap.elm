@@ -15,7 +15,7 @@ import Window
 -- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
 main = 
     let initialCenter = mapT ((*) tileSize) (16, 7)
-        mapCenter = S.map (addT initialCenter) <| S.map (multiplyT (-1, 1)) movement
+        mapCenter = S.map (addT initialCenter << multiplyT (-1, 1)) movement
         zoom = zoomSignal
         draw = \model -> layers [ render osm model, buttons ]
     in S.map draw <| S.map3 (Model tileSize) zoom Window.dimensions mapCenter
