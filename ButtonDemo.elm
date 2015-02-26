@@ -1,4 +1,4 @@
-module ButtonDemo (main) where
+module ButtonDemo (main, ourButton) where
 
 import Color (rgb)
 import Graphics.Element (Element, color, container, flow, layers, middle, right, spacer)
