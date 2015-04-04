@@ -1,5 +1,6 @@
 module Tile (Model, TileRenderer, Zoom(..), render) where
 
+import GeoPoint (GeoPoint)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, layers, spacer)
 import List (map)
@@ -10,11 +11,11 @@ type Zoom = Zoom Int
 
 type alias Model = {
       tileSize : Int,
+      centre : GeoPoint,
       zoom : Zoom,
       window : (Int, Int),
       mapCentre : (Int, Int)
 }
-
 
 type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }

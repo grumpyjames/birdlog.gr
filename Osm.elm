@@ -1,11 +1,11 @@
-module Osm (GeoPoint, centeredOn, convert, osm, simpleOsm, tileSize) where
+module Osm (centeredOn, convert, osm, simpleOsm, tileSize) where
 
 import Graphics.Element (Element, image)
+import GeoPoint (GeoPoint)
 import Tile (TileRenderer, Zoom(..))
 import Tuple (mapT)
 
 type alias TileOffset = { index: Int, pixel: Int }
-type alias GeoPoint = { lat: Float, lon: Float }
 
 tileSize = 256
 
