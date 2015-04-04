@@ -34,8 +34,7 @@ render renderer window m =
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
      in layers <| [ 
                     (uncurry collage) window <| map (draw << Tile) tiles,
-                    (uncurry spacer) window,
-                    plainText <| "\n\ncentre: " ++ (toString centreTile) ++ ", tileCounts: " ++ (toString tileCounts) ++ ", origin: " ++ (toString origin) ++ ", window:" ++ (toString window) ++ ", globalOffset: " ++ (toString globalOffset) ++ ", centrePixel: " ++ (toString centrePixel) ++ ", coord: " ++ (toString m.centre) 
+                    (uncurry spacer) window
                   ]
 
 originTile : (Int, Int) -> (Int, Int) -> (Int, Int)
@@ -47,15 +46,11 @@ globalPixelOffset tileSize tileCounts centrePixel =
         originPixelOffsets = mapT (\a -> tileSize * (a // -2)) tileCounts
     in flipY <| addT originPixelOffsets pixelOffsets 
 
-type alias F1 a = a -> a
 type alias F2 a = a -> a -> a 
 
 addP = lift2 addT
 vid = flip (//)
 mer = flip (%)
-
-lift1 : (F1 (Int, Int)) -> (F1 Position)
-lift1 g = \p -> Position <| g p.pixels
 
 lift2 : (F2 (Int, Int)) -> (F2 Position)
 lift2 g = \p1 p2 -> Position <| g p1.pixels p2.pixels

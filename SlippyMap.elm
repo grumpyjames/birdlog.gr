@@ -12,7 +12,6 @@ import Tuple (..)
 import Wheel (wheel)
 import Window
 
--- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
 main = 
     let gpt = GeoPoint 51.48 0.0
         initModel = Model tileSize gpt initialZoom convert (False, (0,0))
