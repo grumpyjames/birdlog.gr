@@ -12,8 +12,7 @@ main = S.map (\c -> plainText <| toString c) movement
 movement = S.map2 (addT) keyMovement dragMovement
 
 keyMovement : Signal (Int, Int)
-keyMovement = let toTuple a = (a.x, a.y)
-              in S.map (mapT ((*) (-256))) <| S.foldp (addT) zeroT <| S.map toTuple arrows
+keyMovement = S.foldp (addT) zeroT (keyState 256)
 
 step2 : (Bool, (Int, Int)) -> (Bool, (Int, Int)) -> (Int, Int)
 step2 (_, (x2, y2)) (wasDown, (lastx, lasty)) =
@@ -23,12 +22,17 @@ dragMovement : Signal (Int, Int)
 dragMovement = S.foldp addT zeroT deltas
 
 deltas : Signal (Int, Int)
-deltas = foldpT step2 ((False, zeroT), zeroT) pnWhenDown
+deltas = foldpT step2 ((False, zeroT), zeroT) mouseState
 
 foldpT : (a -> a -> b) -> (a, b) -> Signal a -> Signal b
 foldpT fn initState sgnl =
     let glue f newB (oldB, _) = (newB, f newB oldB)
     in S.map snd <| S.foldp (glue fn) initState sgnl 
 
-pnWhenDown : Signal (Bool, (Int, Int))
-pnWhenDown = S.map2 (,) Mouse.isDown Mouse.position
+keyState : Int -> Signal (Int, Int)
+keyState tileSize =
+    let toTuple a = (a.x, a.y)
+    in S.map (mapT ((*) (-1 * tileSize))) <| S.map toTuple arrows
+
+mouseState : Signal (Bool, (Int, Int))
+mouseState = S.map2 (,) Mouse.isDown Mouse.position
