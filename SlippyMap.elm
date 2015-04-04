@@ -15,14 +15,13 @@ import Window
 -- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
 main = 
     let gpt = GeoPoint 51.48 0.0
-        initModel = Model tileSize gpt initialZoom (0,0) convert (False, (0,0))
-        draw = \model -> layers [ render osm model, buttons ]
-    in S.map draw <| S.foldp applyEvent initModel events
+        initModel = Model tileSize gpt initialZoom convert (False, (0,0))
+        draw = \window model -> layers [ render osm window model, buttons ]
+    in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
 
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
  Z zo -> applyZoom m zo
- W wi -> applyWindow m wi
  M mi -> applyMouse m mi
  K ke -> applyKeys m ke
 
@@ -31,12 +30,11 @@ buttons = flow right [zoomIn, zoomOut]
 events : Signal Events
 events = 
     let zooms = S.map Z zoomChanges
-        windows = S.map W Window.dimensions
         keys = S.map K <| S.map (multiplyT (256, 256)) <| keyState
         mouse = S.map M mouseState
-    in S.mergeMany [windows, mouse, zooms, keys]
+    in S.mergeMany [zooms, mouse, keys]
 
-type Events = Z ZoomChange | W (Int, Int) | M (Bool, (Int, Int)) | K (Int, Int)
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int)
 
 move : Int -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt (x, y) =
@@ -46,9 +44,6 @@ move z gpt (x, y) =
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
-
-applyWindow : Model -> (Int, Int) -> Model
-applyWindow m w = { m | window <- w }
 
 applyMouse : Model -> (Bool, (Int, Int)) -> Model
 applyMouse model (isDown, (newX, newY)) = 

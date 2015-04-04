@@ -14,7 +14,6 @@ type alias Model = {
       tileSize : Int,
       centre : GeoPoint,
       zoom : Zoom,
-      window : (Int, Int),
       converter : Zoom -> GeoPoint -> (TileOffset, TileOffset),
       mouseState : (Bool, (Int, Int))
 }
@@ -22,10 +21,10 @@ type alias Model = {
 type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }
 
-render : TileRenderer -> Model -> Element
-render renderer m =
+render : TileRenderer -> (Int, Int) -> Model -> Element
+render renderer window m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
-        tileCounts = mapT requiredTiles m.window
+        tileCounts = mapT requiredTiles window
         mapCentre = m.converter m.zoom m.centre
         centreTile = mapT (\off -> off.index) mapCentre
         centrePixel = mapT (\off -> off.pixel) mapCentre
@@ -34,9 +33,9 @@ render renderer m =
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
      in layers <| [ 
-                    (uncurry collage) m.window <| map (draw << Tile) tiles,
-                    (uncurry spacer) m.window,
-                    plainText <| "\n\ncentre: " ++ (toString centreTile) ++ ", tileCounts: " ++ (toString tileCounts) ++ ", origin: " ++ (toString origin) ++ ", window:" ++ (toString m.window) ++ ", globalOffset: " ++ (toString globalOffset) ++ ", centrePixel: " ++ (toString centrePixel) ++ ", coord: " ++ (toString m.centre) 
+                    (uncurry collage) window <| map (draw << Tile) tiles,
+                    (uncurry spacer) window,
+                    plainText <| "\n\ncentre: " ++ (toString centreTile) ++ ", tileCounts: " ++ (toString tileCounts) ++ ", origin: " ++ (toString origin) ++ ", window:" ++ (toString window) ++ ", globalOffset: " ++ (toString globalOffset) ++ ", centrePixel: " ++ (toString centrePixel) ++ ", coord: " ++ (toString m.centre) 
                   ]
 
 originTile : (Int, Int) -> (Int, Int) -> (Int, Int)
