@@ -14,21 +14,25 @@ import Window
 
 -- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
 main = 
-    let initialCenter = mapT ((*) tileSize) (16, 7)
-        mapCenter = S.map (addT initialCenter << multiplyT (-1, 1)) movement
-        zoom = zoomSignal
-        gpt = GeoPoint 51.48 0.0
+    let gpt = GeoPoint 51.48 0.0
+        initModel = Model tileSize gpt initialZoom (0,0) convert
         draw = \model -> layers [ render osm model, buttons ]
-    in S.map draw <| S.map3 (Model tileSize gpt) zoom Window.dimensions (S.constant convert)
+    in S.map draw <| S.foldp applyEvent initModel events
+
+applyEvent : Events -> Model -> Model
+applyEvent e m = case e of
+ D d -> applyDrag m d
+ Z z -> applyZoom m z
+ W w -> applyWindow m w
 
 buttons = flow right [zoomIn, zoomOut]
 
 events : Signal Events
 events = 
-    let drags = S.map D deltas
+    let drags = S.map D <| S.map (multiplyT (-1, -1)) deltas
         zooms = S.map Z zoomChanges
         windows = S.map W Window.dimensions
-    in S.mergeMany [drags, zooms, windows]
+    in S.mergeMany [windows, zooms, drags]
 
 type Events = D (Int, Int) | Z ZoomChange | W (Int, Int)
 
@@ -39,12 +43,15 @@ applyDrag m drag =
 
 move : Int -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt (x, y) =
-    let dx = toFloat (x * z)
-        dy = toFloat (y * z)
-    in GeoPoint (gpt.lat + dx) (gpt.lon + dy)
+    let dlon = toFloat (x * z) * 0.0005
+        dlat = toFloat (y * z) * 0.0005
+    in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
+
+applyWindow : Model -> (Int, Int) -> Model
+applyWindow m w = { m | window <- w }
 
 newZoom : ZoomChange -> Zoom -> Zoom
 newZoom zc zoom = 
@@ -61,7 +68,7 @@ zoomChange = S.channel None
 zoomIn = ourButton (S.send zoomChange In) "+"
 zoomOut = ourButton (S.send zoomChange Out) "-"
 
-initialZoom = 9
+initialZoom = Zoom 9
 
 zoomChanges = S.subscribe zoomChange 
 
@@ -72,4 +79,4 @@ zoomSignal =
               In -> z + 1
               Out -> z - 1
               None -> z
-    in S.map Zoom <| S.foldp step initialZoom zs
+    in S.map Zoom <| S.foldp step 9 zs

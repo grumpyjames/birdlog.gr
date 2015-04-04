@@ -35,7 +35,7 @@ render renderer m =
      in layers <| [ 
                     (uncurry collage) m.window <| map (draw << Tile) tiles,
                     (uncurry spacer) m.window,
-                    plainText <| "\n\ncentre: " ++ (toString centreTile) ++ ", tileCounts: " ++ (toString tileCounts) ++ ", origin: " ++ (toString origin) ++ ", window:" ++ (toString m.window) ++ ", globalOffset: " ++ (toString globalOffset) ++ ", centrePixel: " ++ (toString centrePixel) 
+                    plainText <| "\n\ncentre: " ++ (toString centreTile) ++ ", tileCounts: " ++ (toString tileCounts) ++ ", origin: " ++ (toString origin) ++ ", window:" ++ (toString m.window) ++ ", globalOffset: " ++ (toString globalOffset) ++ ", centrePixel: " ++ (toString centrePixel) ++ ", coord: " ++ (toString m.centre) 
                   ]
 
 originTile : (Int, Int) -> (Int, Int) -> (Int, Int)
