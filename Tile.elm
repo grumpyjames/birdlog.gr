@@ -15,14 +15,15 @@ type alias Model = {
       centre : GeoPoint,
       zoom : Zoom,
       converter : Zoom -> GeoPoint -> (TileOffset, TileOffset),
-      mouseState : (Bool, (Int, Int))
+      mouseState : (Bool, (Int, Int)),
+      renderer : TileRenderer
 }
 
 type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }
 
-render : TileRenderer -> (Int, Int) -> Model -> Element
-render renderer window m =
+render : (Int, Int) -> Model -> Element
+render window m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles window
         mapCentre = m.converter m.zoom m.centre
@@ -31,7 +32,7 @@ render renderer window m =
         globalOffset = Position <| globalPixelOffset m.tileSize tileCounts centrePixel
         origin = Tile <| originTile centreTile tileCounts               
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
-        draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
+        draw = chain (drawTile m.renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
      in layers <| [ 
                     (uncurry collage) window <| map (draw << Tile) tiles,
                     (uncurry spacer) window

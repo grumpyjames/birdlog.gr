@@ -15,8 +15,8 @@ import Window
 main = 
     let gpt = GeoPoint 51.48 0.0
         initialZoom = Zoom 15
-        initModel = Model tileSize gpt initialZoom convert (False, (0,0))
-        draw = \window model -> layers [ render osm window model, buttons ]
+        initModel = Model tileSize gpt initialZoom convert (False, (0,0)) osm
+        draw = \window model -> layers [ render window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
 
 applyEvent : Events -> Model -> Model
