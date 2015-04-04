@@ -2,7 +2,7 @@ module SlippyMap (main) where
 
 import ButtonDemo (ourButton)
 import GeoPoint (GeoPoint)
-import Movement (movement, deltas)
+import Movement (movement, deltas, keyState, mouseState)
 import Osm (osm, tileSize, convert)
 
 import Graphics.Element (flow, layers, right)
@@ -15,7 +15,7 @@ import Window
 -- 'inverted' mouse, but elm's y and osms are opposite. Do any remaining flips below
 main = 
     let gpt = GeoPoint 51.48 0.0
-        initModel = Model tileSize gpt initialZoom (0,0) convert
+        initModel = Model tileSize gpt initialZoom (0,0) convert (False, (0,0))
         draw = \model -> layers [ render osm model, buttons ]
     in S.map draw <| S.foldp applyEvent initModel events
 

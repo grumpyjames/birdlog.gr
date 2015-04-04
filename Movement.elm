@@ -1,4 +1,4 @@
-module Movement (main, deltas, movement) where 
+module Movement (main, deltas, movement, mouseState, keyState) where 
 
 import Graphics.Element (Element)
 import Keyboard (arrows)
@@ -12,7 +12,7 @@ main = S.map (\c -> plainText <| toString c) movement
 movement = S.map2 (addT) keyMovement dragMovement
 
 keyMovement : Signal (Int, Int)
-keyMovement = S.foldp (addT) zeroT (keyState 256)
+keyMovement = S.foldp (addT) zeroT <| S.map (mapT ((*) (-1 * 256))) <| keyState
 
 step2 : (Bool, (Int, Int)) -> (Bool, (Int, Int)) -> (Int, Int)
 step2 (_, (x2, y2)) (wasDown, (lastx, lasty)) =
@@ -29,10 +29,10 @@ foldpT fn initState sgnl =
     let glue f newB (oldB, _) = (newB, f newB oldB)
     in S.map snd <| S.foldp (glue fn) initState sgnl 
 
-keyState : Int -> Signal (Int, Int)
-keyState tileSize =
+keyState : Signal (Int, Int)
+keyState =
     let toTuple a = (a.x, a.y)
-    in S.map (mapT ((*) (-1 * tileSize))) <| S.map toTuple arrows
+    in S.map toTuple arrows
 
 mouseState : Signal (Bool, (Int, Int))
 mouseState = S.map2 (,) Mouse.isDown Mouse.position

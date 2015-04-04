@@ -15,7 +15,8 @@ type alias Model = {
       centre : GeoPoint,
       zoom : Zoom,
       window : (Int, Int),
-      converter : Zoom -> GeoPoint -> (TileOffset, TileOffset)
+      converter : Zoom -> GeoPoint -> (TileOffset, TileOffset),
+      mouseState : (Bool, (Int, Int))
 }
 
 type alias Tile = { coordinate : (Int, Int) }
