@@ -14,6 +14,7 @@ import Window
 
 main = 
     let gpt = GeoPoint 51.48 0.0
+        initialZoom = Zoom 15
         initModel = Model tileSize gpt initialZoom convert (False, (0,0))
         draw = \window model -> layers [ render osm window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
@@ -28,7 +29,7 @@ buttons = flow right [zoomIn, zoomOut]
 
 events : Signal Events
 events = 
-    let zooms = S.map Z zoomChanges
+    let zooms = S.map Z <| S.subscribe zoomChange 
         keys = S.map K <| S.map (multiplyT (256, 256)) <| keyState
         mouse = S.map M mouseState
     in S.mergeMany [zooms, mouse, keys]
@@ -36,9 +37,8 @@ events =
 type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int)
 
 move : Int -> GeoPoint -> (Int, Int) -> GeoPoint
-move z gpt (x, y) =
-    let dlon = (toFloat x) * (1.0 / (toFloat (z * z))) * 0.1
-        dlat = (toFloat y) * (1.0 / (toFloat (z * z))) * 0.1
+move z gpt pixOff =
+    let (dlon, dlat) = mapT (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ z))) pixOff
     in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 applyZoom : Model -> ZoomChange -> Model
@@ -74,7 +74,3 @@ zoomChange = S.channel None
 
 zoomIn = ourButton (S.send zoomChange In) "+"
 zoomOut = ourButton (S.send zoomChange Out) "-"
-
-initialZoom = Zoom 9
-
-zoomChanges = S.subscribe zoomChange 
