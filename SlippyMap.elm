@@ -1,13 +1,13 @@
 module SlippyMap (main) where
 
 import ButtonDemo (ourButton)
-import GeoPoint (GeoPoint)
+import Types (GeoPoint, Zoom(..), Model)
 import Movement (movement, deltas, keyState, mouseState)
 import Osm (osm, tileSize, convert)
 
 import Graphics.Element (flow, layers, right)
 import Signal as S
-import Tile (Model, Zoom(..), render)
+import Tile (render)
 import Tuple (..)
 import Wheel (wheel)
 import Window

@@ -1,26 +1,11 @@
-module Tile (Model, TileRenderer, Zoom(..), render) where
+module Tile (render) where
 
-import GeoPoint (GeoPoint, TileOffset)
+import Types (Model, Position, Tile)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, layers, spacer)
 import List (map)
 import Text (plainText)
 import Tuple (..)
-
-type alias TileRenderer = Zoom -> Int -> (Int, Int) -> Element
-type Zoom = Zoom Int
-
-type alias Model = {
-      tileSize : Int,
-      centre : GeoPoint,
-      zoom : Zoom,
-      converter : Zoom -> GeoPoint -> (TileOffset, TileOffset),
-      mouseState : (Bool, (Int, Int)),
-      renderer : TileRenderer
-}
-
-type alias Tile = { coordinate : (Int, Int) }
-type alias Position = { pixels : (Int, Int) }
 
 render : (Int, Int) -> Model -> Element
 render window m =
@@ -32,11 +17,14 @@ render window m =
         globalOffset = Position <| globalPixelOffset m.tileSize tileCounts centrePixel
         origin = Tile <| originTile centreTile tileCounts               
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
-        draw = chain (drawTile m.renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
+        draw = chain (m.renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
      in layers <| [ 
                     (uncurry collage) window <| map (draw << Tile) tiles,
                     (uncurry spacer) window
                   ]
+
+chain : (a -> b) -> (a -> b -> c) -> a -> c
+chain f g = \a -> g a (f a)
 
 originTile : (Int, Int) -> (Int, Int) -> (Int, Int)
 originTile centreTile tileCounts = centreTile `subtractT` (mapT (vid 2) tileCounts)
@@ -58,9 +46,6 @@ lift2 g = \p1 p2 -> Position <| g p1.pixels p2.pixels
 
 flipY = multiplyT (1, -1)
 
-chain : (a -> b) -> (a -> b -> c) -> a -> c
-chain f g = \a -> g a (f a)
-
 relativeTilePosition : Int -> Tile -> Tile -> Position
 relativeTilePosition tileSize originTile tile = 
     let relativeTile = tile.coordinate `subtractT` originTile.coordinate
@@ -72,9 +57,6 @@ doMove tileSize originTile globalOffset tile element =
     let tileSpecificOffset = relativeTilePosition tileSize originTile tile
         distance = addP globalOffset tileSpecificOffset
     in move (mapT toFloat distance.pixels) <| toForm element
-    
-drawTile : TileRenderer -> Zoom -> Int -> Tile -> Element
-drawTile r z tileSize t = r z tileSize t.coordinate
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
