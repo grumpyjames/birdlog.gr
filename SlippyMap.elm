@@ -43,8 +43,8 @@ applyDrag m drag =
 
 move : Int -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt (x, y) =
-    let dlon = toFloat (x * z) * 0.0005
-        dlat = toFloat (y * z) * 0.0005
+    let dlon = (toFloat x) * (1.0 / (toFloat (z * z))) * 0.1
+        dlat = (toFloat y) * (1.0 / (toFloat (z * z))) * 0.1
     in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 applyZoom : Model -> ZoomChange -> Model
