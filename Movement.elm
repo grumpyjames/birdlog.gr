@@ -1,4 +1,4 @@
-module Movement (main, movement) where 
+module Movement (main, deltas, movement) where 
 
 import Graphics.Element (Element)
 import Keyboard (arrows)
@@ -20,7 +20,10 @@ step2 (_, (x2, y2)) (wasDown, (lastx, lasty)) =
     if wasDown then (x2 - lastx, lasty - y2) else zeroT
 
 dragMovement : Signal (Int, Int)
-dragMovement = S.foldp addT zeroT <| foldpT step2 ((False, zeroT), zeroT) pnWhenDown
+dragMovement = S.foldp addT zeroT deltas
+
+deltas : Signal (Int, Int)
+deltas = foldpT step2 ((False, zeroT), zeroT) pnWhenDown
 
 foldpT : (a -> a -> b) -> (a, b) -> Signal a -> Signal b
 foldpT fn initState sgnl =
