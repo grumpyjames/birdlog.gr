@@ -1,9 +1,10 @@
 module Tile (Model, TileRenderer, Zoom(..), render) where
 
-import GeoPoint (GeoPoint)
+import GeoPoint (GeoPoint, TileOffset)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, layers, spacer)
 import List (map)
+import Text (plainText)
 import Tuple (..)
 
 type alias TileRenderer = Zoom -> Int -> (Int, Int) -> Element
@@ -14,7 +15,7 @@ type alias Model = {
       centre : GeoPoint,
       zoom : Zoom,
       window : (Int, Int),
-      mapCentre : (Int, Int)
+      converter : Zoom -> GeoPoint -> (TileOffset, TileOffset)
 }
 
 type alias Tile = { coordinate : (Int, Int) }
@@ -23,21 +24,27 @@ type alias Position = { pixels : (Int, Int) }
 render : TileRenderer -> Model -> Element
 render renderer m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
-        tileCounts = mapT requiredTiles m.window        
-        globalOffset = Position <| globalPixelOffset m.tileSize tileCounts m.mapCentre
-        origin = Tile <| originTile m.tileSize m.mapCentre tileCounts               
+        tileCounts = mapT requiredTiles m.window
+        mapCentre = m.converter m.zoom m.centre
+        centreTile = mapT (\off -> off.index) mapCentre
+        centrePixel = mapT (\off -> off.pixel) mapCentre
+        globalOffset = Position <| globalPixelOffset m.tileSize tileCounts centrePixel
+        origin = Tile <| originTile centreTile tileCounts               
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
         draw = chain (drawTile renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
-     in layers <| [ (uncurry collage) m.window <| map (draw << Tile) tiles,
-                    (uncurry spacer) m.window ]
+     in layers <| [ 
+                    (uncurry collage) m.window <| map (draw << Tile) tiles,
+                    (uncurry spacer) m.window,
+                    plainText <| "\n\ncentre: " ++ (toString centreTile) ++ ", tileCounts: " ++ (toString tileCounts) ++ ", origin: " ++ (toString origin) ++ ", window:" ++ (toString m.window) ++ ", globalOffset: " ++ (toString globalOffset) ++ ", centrePixel: " ++ (toString centrePixel) 
+                  ]
 
-originTile : Int -> (Int, Int) -> (Int, Int) -> (Int, Int)
-originTile tileSize mapCentre tileCounts = (mapT (vid tileSize) mapCentre) `subtractT` (mapT (vid 2) tileCounts)
+originTile : (Int, Int) -> (Int, Int) -> (Int, Int)
+originTile centreTile tileCounts = centreTile `subtractT` (mapT (vid 2) tileCounts)
 
 globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> (Int, Int)
-globalPixelOffset tileSize tileCounts mapCentre =
-    let pixelOffsets = (128, 128) `subtractT` (mapT (mer tileSize) mapCentre)
-        originPixelOffsets = mapT (\a -> (a * tileSize) // -2) tileCounts
+globalPixelOffset tileSize tileCounts centrePixel =
+    let pixelOffsets = subtractT (128, 128) centrePixel
+        originPixelOffsets = mapT (\a -> tileSize * (a // -2)) tileCounts
     in flipY <| addT originPixelOffsets pixelOffsets 
 
 type alias F1 a = a -> a

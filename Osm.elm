@@ -1,13 +1,16 @@
-module Osm (centeredOn, convert, osm, simpleOsm, tileSize) where
+module Osm (centeredOn, convert, cvt, osm, simpleOsm, tileSize) where
 
 import Graphics.Element (Element, image)
-import GeoPoint (GeoPoint)
+import GeoPoint (GeoPoint, TileOffset)
 import Tile (TileRenderer, Zoom(..))
 import Tuple (mapT)
 
-type alias TileOffset = { index: Int, pixel: Int }
-
 tileSize = 256
+
+cvt : Zoom -> GeoPoint -> (Int, Int)
+cvt z gpt = 
+    let toInt t = (t.index * tileSize) + t.pixel
+    in mapT toInt (convert z gpt)
 
 convert : Zoom -> GeoPoint -> (TileOffset, TileOffset)
 convert zoom geopt = mapT toOffset (lon2tilex zoom geopt.lon, lat2tiley zoom geopt.lat)
