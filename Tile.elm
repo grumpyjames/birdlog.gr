@@ -12,10 +12,8 @@ render window m =
     let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
         tileCounts = mapT requiredTiles window
         mapCentre = m.converter m.zoom m.centre
-        centreTile = mapT (\off -> off.index) mapCentre
-        centrePixel = mapT (\off -> off.pixel) mapCentre
-        globalOffset = Position <| globalPixelOffset m.tileSize tileCounts centrePixel
-        origin = Tile <| originTile centreTile tileCounts               
+        globalOffset = globalPixelOffset m.tileSize tileCounts mapCentre.position
+        origin = originTile mapCentre.tile tileCounts               
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
         draw = chain (m.renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
      in layers <| [ 
@@ -26,14 +24,14 @@ render window m =
 chain : (a -> b) -> (a -> b -> c) -> a -> c
 chain f g = \a -> g a (f a)
 
-originTile : (Int, Int) -> (Int, Int) -> (Int, Int)
-originTile centreTile tileCounts = centreTile `subtractT` (mapT (vid 2) tileCounts)
+originTile : Tile -> (Int, Int) -> Tile
+originTile centreTile tileCounts = Tile <| centreTile.coordinate `subtractT` (mapT (vid 2) tileCounts)
 
-globalPixelOffset : Int -> (Int, Int) -> (Int, Int) -> (Int, Int)
+globalPixelOffset : Int -> (Int, Int) -> Position -> Position
 globalPixelOffset tileSize tileCounts centrePixel =
-    let pixelOffsets = subtractT (128, 128) centrePixel
+    let pixelOffsets = (128, 128) `subtractT` centrePixel.pixels
         originPixelOffsets = mapT (\a -> tileSize * (a // -2)) tileCounts
-    in flipY <| addT originPixelOffsets pixelOffsets 
+    in Position <| flipY <| originPixelOffsets `addT` pixelOffsets 
 
 type alias F2 a = a -> a -> a 
 

@@ -1,24 +1,24 @@
-module Osm (centeredOn, convert, cvt, osm, simpleOsm, tileSize) where
+module Osm (centeredOn, convert, osm, simpleOsm, tileSize) where
 
 import Graphics.Element (Element, image)
-import Types (GeoPoint, TileOffset, TileRenderer, Zoom(..))
+import Types (GeoPoint, Tile, Position, TileOffset, TileRenderer, Zoom(..))
 import Tuple (mapT)
 
 tileSize = 256
 
-cvt : Zoom -> GeoPoint -> (Int, Int)
-cvt z gpt = 
-    let toInt t = (t.index * tileSize) + t.pixel
-    in mapT toInt (convert z gpt)
-
-convert : Zoom -> GeoPoint -> (TileOffset, TileOffset)
-convert zoom geopt = mapT toOffset (lon2tilex zoom geopt.lon, lat2tiley zoom geopt.lat)
+convert : Zoom -> GeoPoint -> TileOffset
+convert zoom geopt =
+    let index f = floor f
+        pixel f = floor ((f - (toFloat (index f))) * tileSize)
+        tile f1 f2 = Tile (index f1, index f2)
+        position f1 f2 = Position (pixel f1, pixel f2)
+        toOffset tX tY = TileOffset (tile tX tY) (position tX tY) 
+    in toOffset (lon2tilex zoom geopt.lon) (lat2tiley zoom geopt.lat)
 
 centeredOn : Zoom -> GeoPoint -> Element
 centeredOn zoom geopt = 
-    let tx = toOffset <| lon2tilex zoom geopt.lon
-        ty = toOffset <| lat2tiley zoom geopt.lat
-    in image tileSize tileSize <| osmUrl zoom (tx.index, ty.index)
+    let os = convert zoom geopt
+    in image tileSize tileSize <| osmUrl zoom os.tile.coordinate
 
 osm : TileRenderer
 osm zoom size tile = image size size <| osmUrl zoom tile.coordinate
@@ -35,12 +35,6 @@ log = logBase e
 tiley2lat y z = 
     let n = pi - 2.0 * pi * y / (2.0 ^ z)
     in 180.0 / pi * atan ( 0.5 * ( (e ^ n) - (e ^ (-n) ) ) )                
-
-toOffset : Float -> TileOffset
-toOffset f = 
-    let index = floor f
-        pixel = floor ((f - (toFloat index)) * tileSize)
-    in { index = index, pixel = pixel }  
 
 lon2tilex : Zoom -> Float -> Float
 lon2tilex zoom lon = 
