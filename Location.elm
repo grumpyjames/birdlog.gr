@@ -1,11 +1,11 @@
 import Color (red)
 import Graphics.Element (Element, color, container, empty, layers, opacity, topLeft)
 import Native.Location (location)
-import Osm (GeoPoint, convert, simpleOsm)
+import Osm (openStreetMap, simpleOsm)
 import Signal (map)
 import Text (plainText)
-import Tile (Zoom(..))
 import Tuple (mapT)
+import Types (GeoPoint, Zoom(..))
 
 location = Native.Location.location
 
@@ -20,9 +20,9 @@ show lr =
 
 showLocation : Zoom -> GeoPoint -> Element
 showLocation zoom geopt =
-    let offsets = convert zoom geopt
-        tileImg = simpleOsm zoom <| mapT (\t -> t.index) offsets
-        pixelOffsets = mapT (\t -> t.pixel) offsets
+    let offsets = openStreetMap.locate zoom geopt
+        tileImg = simpleOsm zoom <| offsets.tile.coordinate
+        pixelOffsets = offsets.position.pixels
         indicator = container (fst pixelOffsets) (snd pixelOffsets) topLeft empty
     in layers <| [ tileImg, opacity 0.3 <| color red <| indicator ] 
 

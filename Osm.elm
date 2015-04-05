@@ -1,4 +1,4 @@
-module Osm (centeredOn, locate, openStreetMap, simpleOsm) where
+module Osm (openStreetMap, simpleOsm) where
 
 import Graphics.Element (Element, image)
 import Types (GeoPoint, Locator, Position, Renderer, Tile, TileOffset, TileSource, Zoom(..))
@@ -9,7 +9,7 @@ tileSize = 256
 locate : Locator
 locate zoom geopt =
     let index f = floor f
-        pixel f = floor ((f - (toFloat (index f))) * tileSize)
+        pixel f = floor <| (f - (toFloat (index f))) * tileSize
         tile f1 f2 = Tile (index f1, index f2)
         position f1 f2 = Position (pixel f1, pixel f2)
         toOffset tX tY = TileOffset (tile tX tY) (position tX tY) 
