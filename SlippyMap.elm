@@ -4,6 +4,7 @@ import ButtonDemo (ourButton)
 import Types (GeoPoint, Zoom(..), Model)
 import Movement (movement, deltas, keyState, mouseState)
 import Osm (openStreetMap)
+import ArcGIS (arcGIS)
 
 import Graphics.Element (flow, layers, right)
 import Signal as S
@@ -15,7 +16,7 @@ import Window
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = Zoom 15
-        initModel = Model greenwich initialZoom (False, (0,0)) openStreetMap
+        initModel = Model greenwich initialZoom (False, (0,0)) arcGIS
         draw = \window model -> layers [ render window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
 
