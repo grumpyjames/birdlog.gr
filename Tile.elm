@@ -9,13 +9,13 @@ import Tuple (..)
 
 render : (Int, Int) -> Model -> Element
 render window m =
-    let requiredTiles dim = (3 * m.tileSize + dim) // m.tileSize
+    let requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
         tileCounts = mapT requiredTiles window
-        mapCentre = m.converter m.zoom m.centre
-        globalOffset = globalPixelOffset m.tileSize tileCounts mapCentre.position
+        mapCentre = m.tileSource.locate m.zoom m.centre
+        globalOffset = globalPixelOffset m.tileSource.tileSize tileCounts mapCentre.position
         origin = originTile mapCentre.tile tileCounts               
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
-        draw = chain (m.renderer m.zoom m.tileSize) (doMove m.tileSize origin globalOffset) 
+        draw = chain (m.tileSource.render m.zoom m.tileSource.tileSize) (doMove m.tileSource.tileSize origin globalOffset) 
      in layers <| [ 
                     (uncurry collage) window <| map (draw << Tile) tiles,
                     (uncurry spacer) window

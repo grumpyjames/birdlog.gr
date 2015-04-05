@@ -1,13 +1,13 @@
-module Osm (centeredOn, convert, osm, simpleOsm, tileSize) where
+module Osm (centeredOn, locate, openStreetMap, simpleOsm) where
 
 import Graphics.Element (Element, image)
-import Types (GeoPoint, Tile, Position, TileOffset, TileRenderer, Zoom(..))
+import Types (GeoPoint, Locator, Position, Renderer, Tile, TileOffset, TileSource, Zoom(..))
 import Tuple (mapT)
 
 tileSize = 256
 
-convert : Zoom -> GeoPoint -> TileOffset
-convert zoom geopt =
+locate : Locator
+locate zoom geopt =
     let index f = floor f
         pixel f = floor ((f - (toFloat (index f))) * tileSize)
         tile f1 f2 = Tile (index f1, index f2)
@@ -17,10 +17,13 @@ convert zoom geopt =
 
 centeredOn : Zoom -> GeoPoint -> Element
 centeredOn zoom geopt = 
-    let os = convert zoom geopt
+    let os = locate zoom geopt
     in image tileSize tileSize <| osmUrl zoom os.tile.coordinate
 
-osm : TileRenderer
+openStreetMap : TileSource
+openStreetMap = TileSource tileSize locate osm
+
+osm : Renderer
 osm zoom size tile = image size size <| osmUrl zoom tile.coordinate
 
 simpleOsm zoom tc = image tileSize tileSize <| osmUrl zoom tc
