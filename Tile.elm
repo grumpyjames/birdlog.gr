@@ -1,6 +1,7 @@
 module Tile (render) where
 
 import Types (Model, Position, Tile)
+import Functions (chain)
 import Graphics.Collage (Form, collage, move, toForm)
 import Graphics.Element (Element, layers, spacer)
 import List (map)
@@ -20,9 +21,6 @@ render window m =
                     (uncurry collage) window <| map (draw << Tile) tiles,
                     (uncurry spacer) window
                   ]
-
-chain : (a -> b) -> (a -> b -> c) -> a -> c
-chain f g = \a -> g a (f a)
 
 originTile : Tile -> (Int, Int) -> Tile
 originTile centreTile tileCounts = Tile <| centreTile.coordinate `subtractT` (mapT (vid 2) tileCounts)
