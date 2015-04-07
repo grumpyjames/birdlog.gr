@@ -1,9 +1,9 @@
 module Tile (render) where
 
-import Types (Model, Position, Tile)
+import Types (Model, Position, Tile, TileUrl, Zoom(..))
 import Functions (chain)
 import Graphics.Collage (Form, collage, move, toForm)
-import Graphics.Element (Element, layers, spacer)
+import Graphics.Element (Element, image, layers, spacer)
 import List (map)
 import Text (plainText)
 import Tuple (..)
@@ -16,11 +16,15 @@ render window m =
         globalOffset = globalPixelOffset m.tileSource.tileSize tileCounts mapCentre.position
         origin = originTile mapCentre.tile tileCounts               
         tiles = cartesianProduct <| mergeT range origin.coordinate tileCounts
-        draw = chain (m.tileSource.render m.zoom m.tileSource.tileSize) (doMove m.tileSource.tileSize origin globalOffset) 
+        draw = chain (tileEl m.tileSource.tileSize m.tileSource.tileUrl m.zoom) (doMove m.tileSource.tileSize origin globalOffset) 
      in layers <| [ 
                     (uncurry collage) window <| map (draw << Tile) tiles,
                     (uncurry spacer) window
                   ]
+
+
+tileEl : Int -> TileUrl -> Zoom -> Tile -> Element
+tileEl size url zoom tile = image size size <| url zoom tile
 
 originTile : Tile -> (Int, Int) -> Tile
 originTile centreTile tileCounts = Tile <| centreTile.coordinate `subtractT` (mapT (vid 2) tileCounts)

@@ -10,9 +10,9 @@ type ZoomChange = In | Out | None
 
 zoomChange = channel None
 
-hoverC = rgb 133 133 133
-downC = rgb 99 99 99
-upC = rgb 111 111 111
+hoverC = rgb 240 240 240
+downC = rgb 235 235 235
+upC = rgb 248 248 248
 
 ourButton : Message -> String -> Element
 ourButton msg txt = 

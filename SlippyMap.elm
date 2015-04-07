@@ -1,41 +1,58 @@
 module SlippyMap (main) where
 
 import ButtonDemo (ourButton)
-import Types (GeoPoint, Zoom(..), Model)
+import Types (GeoPoint, Zoom(..), Model, TileSource)
 import Movement (movement, deltas, keyState, mouseState)
 import Osm (openStreetMap)
 import ArcGIS (arcGIS)
 
-import Graphics.Element (flow, layers, right)
+import Graphics.Element (Element, flow, layers, right)
+import Graphics.Input (dropDown)
 import Signal as S
 import Tile (render)
 import Tuple (..)
 import Wheel (wheel)
 import Window
 
+defaultTileSrc = openStreetMap
+
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = Zoom 15
-        initModel = Model greenwich initialZoom (False, (0,0)) arcGIS
+        initModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
         draw = \window model -> layers [ render window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
+
+tileSrc : S.Channel (Maybe TileSource)
+tileSrc = S.channel Nothing
+
+tileSrcDropDown : Element
+tileSrcDropDown = 
+    dropDown (S.send tileSrc)
+             [ ("OpenStreetMap", Just openStreetMap)
+             , ("ArcGIS", Just arcGIS)
+             ]
 
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
  Z zo -> applyZoom m zo
  M mi -> applyMouse m mi
  K ke -> applyKeys m ke
+ T ti -> case ti of
+           Just ts -> {m | tileSource <- ts }
+           Nothing -> {m | tileSource <- defaultTileSrc }
 
-buttons = flow right [zoomIn, zoomOut]
+buttons = flow right [zoomIn, zoomOut, tileSrcDropDown]
 
 events : Signal Events
 events = 
     let zooms = S.map Z <| S.subscribe zoomChange 
         keys = S.map K <| S.map (multiplyT (256, 256)) <| keyState
         mouse = S.map M mouseState
-    in S.mergeMany [zooms, mouse, keys]
+        tileSource = S.map T <| S.subscribe tileSrc
+    in S.mergeMany [tileSource, zooms, mouse, keys]
 
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int)
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource)
 
 move : Int -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt pixOff =

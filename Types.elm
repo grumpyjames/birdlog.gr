@@ -1,10 +1,10 @@
 module Types (GeoPoint,
               Locator,
               Model,
-              Position,
-              Renderer,              
+              Position,              
               TileOffset,
               TileSource,
+              TileUrl,
               Tile,
               Zoom(..)) where
 
@@ -16,11 +16,11 @@ type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }
 type alias TileOffset = { tile: Tile, position: Position }
 type alias Locator = Zoom -> GeoPoint -> TileOffset
-type alias Renderer = Zoom -> Int -> Tile -> Element
+type alias TileUrl = Zoom -> Tile -> String
 type alias TileSource = {
       tileSize : Int,
       locate: Locator,
-      render: Renderer
+      tileUrl: TileUrl
 }
 type alias Model = {
       centre : GeoPoint,
