@@ -1,11 +1,11 @@
 module SlippyMap (main) where
 
-import Types (GeoPoint, Zoom(..), Model, TileSource)
-import Movement (movement, deltas, keyState, mouseState)
-import Osm (openStreetMap)
 import ArcGIS (arcGIS)
+import Movement (keyState, mouseState)
+import Osm (openStreetMap)
 import Tile (render)
 import Tuple (..)
+import Types (GeoPoint, Zoom(..), Model, TileSource)
 
 import Color (rgb)
 import Graphics.Element (Element, color, container, flow, layers, middle, right)
