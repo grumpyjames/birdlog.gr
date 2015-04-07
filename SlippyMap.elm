@@ -1,17 +1,17 @@
 module SlippyMap (main) where
 
-import ButtonDemo (ourButton)
 import Types (GeoPoint, Zoom(..), Model, TileSource)
 import Movement (movement, deltas, keyState, mouseState)
 import Osm (openStreetMap)
 import ArcGIS (arcGIS)
-
-import Graphics.Element (Element, flow, layers, right)
-import Graphics.Input (dropDown)
-import Signal as S
 import Tile (render)
 import Tuple (..)
-import Wheel (wheel)
+
+import Color (rgb)
+import Graphics.Element (Element, color, container, flow, layers, middle, right)
+import Graphics.Input (customButton, dropDown)
+import Signal as S
+import Text (plainText)
 import Window
 
 defaultTileSrc = openStreetMap
@@ -92,3 +92,16 @@ zoomChange = S.channel None
 
 zoomIn = ourButton (S.send zoomChange In) "+"
 zoomOut = ourButton (S.send zoomChange Out) "-"
+
+hoverC = rgb 240 240 240
+downC = rgb 235 235 235
+upC = rgb 248 248 248
+
+ourButton : S.Message -> String -> Element
+ourButton msg txt = 
+    let el = plainText txt
+        cn = container 30 30 middle el
+        up = color upC cn
+        down = color downC cn
+        hover = color hoverC cn
+    in customButton msg up hover down
