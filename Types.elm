@@ -8,8 +8,6 @@ module Types (GeoPoint,
               Tile,
               Zoom(..)) where
 
-import Graphics.Element (Element)
-
 type Zoom = Zoom Int
 type alias GeoPoint = { lat: Float, lon: Float }
 type alias Tile = { coordinate : (Int, Int) }

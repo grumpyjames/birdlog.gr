@@ -1,6 +1,6 @@
 module Movement (mouseState, keyState) where 
 
-import Keyboard (arrows)
+import Keyboard exposing (arrows)
 import Mouse
 import Signal as S
 

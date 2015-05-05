@@ -1,9 +1,9 @@
 module ArcGIS (arcGIS) where
 
-import CommonLocator (common)
-import Types (Tile, TileSource, Zoom(..))
+import CommonLocator exposing (common)
+import Types exposing (Tile, TileSource, Zoom(..))
 
-import Graphics.Element (Element, image)
+import Graphics.Element exposing (Element, image)
 
 arcGIS : TileSource
 arcGIS = TileSource 256 (common 256) arcGISUrl

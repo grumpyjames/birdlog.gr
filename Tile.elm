@@ -1,12 +1,11 @@
 module Tile (render) where
 
-import Types (Model, Position, Tile, TileUrl, Zoom(..))
-import Functions (chain)
-import Graphics.Collage (Form, collage, move, toForm)
-import Graphics.Element (Element, image, layers, spacer)
-import List (map)
-import Text (plainText)
-import Tuple (..)
+import Types exposing (Model, Position, Tile, TileUrl, Zoom(..))
+import Functions exposing (chain)
+import Graphics.Collage exposing (Form, collage, move, toForm)
+import Graphics.Element exposing (Element, image, layers, spacer)
+import List exposing (map)
+import Tuple exposing (..)
 
 render : (Int, Int) -> Model -> Element
 render window m =

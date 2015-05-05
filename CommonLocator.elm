@@ -1,6 +1,6 @@
 module CommonLocator (common) where
 
-import Types (Locator, Position, Tile, TileOffset, Zoom(..))
+import Types exposing (Locator, Position, Tile, TileOffset, Zoom(..))
 
 -- This locator appears to work for most tile sources
 common : Int -> Locator

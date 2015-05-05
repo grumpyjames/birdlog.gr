@@ -1,17 +1,17 @@
 module SlippyMap (main) where
 
-import ArcGIS (arcGIS)
-import Movement (keyState, mouseState)
-import Osm (openStreetMap)
-import Tile (render)
-import Tuple (..)
-import Types (GeoPoint, Zoom(..), Model, TileSource)
+import ArcGIS exposing (arcGIS)
+import Movement exposing (keyState, mouseState)
+import Osm exposing (openStreetMap)
+import Tile exposing (render)
+import Tuple exposing (..)
+import Types exposing (GeoPoint, Zoom(..), Model, TileSource)
 
-import Color (rgb)
-import Graphics.Element (Element, color, container, flow, layers, middle, right)
-import Graphics.Input (customButton, dropDown)
+import Color exposing (rgb)
+import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
+import Graphics.Input exposing (customButton, dropDown)
 import Signal as S
-import Text (plainText)
+import Text exposing (fromString)
 import Window
 
 defaultTileSrc = openStreetMap
@@ -23,12 +23,12 @@ main =
         draw = \window model -> layers [ render window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
 
-tileSrc : S.Channel (Maybe TileSource)
-tileSrc = S.channel Nothing
+tileSrc : S.Mailbox (Maybe TileSource)
+tileSrc = S.mailbox Nothing
 
 tileSrcDropDown : Element
 tileSrcDropDown = 
-    dropDown (S.send tileSrc)
+    dropDown (S.message tileSrc.address)
              [ ("OpenStreetMap", Just openStreetMap)
              , ("ArcGIS", Just arcGIS)
              ]
@@ -46,10 +46,10 @@ buttons = flow right [zoomIn, zoomOut, tileSrcDropDown]
 
 events : Signal Events
 events = 
-    let zooms = S.map Z <| S.subscribe zoomChange 
+    let zooms = S.map Z <| zoomChange.signal 
         keys = S.map K <| S.map (multiplyT (256, 256)) <| keyState
         mouse = S.map M mouseState
-        tileSource = S.map T <| S.subscribe tileSrc
+        tileSource = S.map T tileSrc.signal
     in S.mergeMany [tileSource, zooms, mouse, keys]
 
 type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource)
@@ -88,10 +88,10 @@ newZoom zc zoom =
 
 type ZoomChange = In | Out | None
 
-zoomChange = S.channel None
+zoomChange = S.mailbox None
 
-zoomIn = ourButton (S.send zoomChange In) "+"
-zoomOut = ourButton (S.send zoomChange Out) "-"
+zoomIn = ourButton (S.message zoomChange.address In) "+"
+zoomOut = ourButton (S.message zoomChange.address Out) "-"
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
@@ -99,7 +99,7 @@ upC = rgb 248 248 248
 
 ourButton : S.Message -> String -> Element
 ourButton msg txt = 
-    let el = plainText txt
+    let el = centered <| fromString txt
         cn = container 30 30 middle el
         up = color upC cn
         down = color downC cn
