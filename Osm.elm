@@ -3,16 +3,11 @@ module Osm (openStreetMap, simpleOsm) where
 import CommonLocator exposing (common)
 import Types exposing (GeoPoint, Locator, Position, Tile, TileOffset, TileSource, TileUrl, Zoom(..))
 
-import Graphics.Element exposing (Element, image)
+import Graphics.Element exposing (image)
 
 tileSize = 256
 
 locate = common tileSize
-
-centeredOn : Zoom -> GeoPoint -> Element
-centeredOn zoom geopt = 
-    let os = locate zoom geopt
-    in image tileSize tileSize <| osmUrl zoom os.tile
 
 openStreetMap : TileSource
 openStreetMap = TileSource tileSize locate osmUrl

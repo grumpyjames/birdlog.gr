@@ -1,4 +1,4 @@
-module Functions (chain) where
+module Functions (andThen) where
 
-chain : (a -> b) -> (a -> b -> c) -> a -> c
-chain f g = \a -> g a (f a)
+andThen : (a -> b) -> (a -> b -> c) -> a -> c
+andThen f g = \a -> g a (f a)
