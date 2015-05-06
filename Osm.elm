@@ -2,7 +2,6 @@ module Osm (openStreetMap, simpleOsm) where
 
 import CommonLocator exposing (common)
 import Types exposing (GeoPoint, Locator, Position, Tile, TileOffset, TileSource, TileUrl, Zoom(..))
-import Tuple exposing (mapT)
 
 import Graphics.Element exposing (Element, image)
 

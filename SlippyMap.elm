@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
 import Tile exposing (render)
-import Tuple exposing (..)
+import Tuple as T
 import Types exposing (GeoPoint, Zoom(..), Model, TileSource)
 
 import Color exposing (rgb)
@@ -47,17 +47,17 @@ buttons = flow right [zoomIn, zoomOut, tileSrcDropDown]
 events : Signal Events
 events = 
     let zooms = S.map Z <| zoomChange.signal 
-        keys = S.map K <| S.map (multiplyT (256, 256)) <| keyState
+        keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         mouse = S.map M mouseState
         tileSource = S.map T tileSrc.signal
     in S.mergeMany [tileSource, zooms, mouse, keys]
 
 type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource)
 
-move : Int -> GeoPoint -> (Int, Int) -> GeoPoint
-move z gpt pixOff =
-    let (dlon, dlat) = mapT (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ z))) pixOff
-    in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
+move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
+move zoom gpt pixOff = case zoom of
+    Zoom z -> let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ z))) pixOff
+              in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
@@ -74,9 +74,7 @@ applyKeys : Model -> (Int, Int) -> Model
 applyKeys = applyDrag
 
 applyDrag : Model -> (Int, Int) -> Model
-applyDrag m drag =
-    case m.zoom of
-      Zoom z -> { m | centre <- move z m.centre drag } 
+applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
 
 newZoom : ZoomChange -> Zoom -> Zoom
 newZoom zc zoom = 
