@@ -19,30 +19,12 @@ defaultTileSrc = openStreetMap
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = Zoom 15
-        initModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
+        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
         draw = \window model -> layers [ render window model, buttons ]
-    in S.map2 draw Window.dimensions (S.foldp applyEvent initModel events)
+    in S.map2 draw Window.dimensions (S.foldp applyEvent initialModel events)
 
-tileSrc : S.Mailbox (Maybe TileSource)
-tileSrc = S.mailbox Nothing
-
-tileSrcDropDown : Element
-tileSrcDropDown = 
-    dropDown (S.message tileSrc.address)
-             [ ("OpenStreetMap", Just openStreetMap)
-             , ("ArcGIS", Just arcGIS)
-             ]
-
-applyEvent : Events -> Model -> Model
-applyEvent e m = case e of
- Z zo -> applyZoom m zo
- M mi -> applyMouse m mi
- K ke -> applyKeys m ke
- T ti -> case ti of
-           Just ts -> {m | tileSource <- ts }
-           Nothing -> {m | tileSource <- defaultTileSrc }
-
-buttons = flow right [zoomIn, zoomOut, tileSrcDropDown]
+-- Events
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource)
 
 events : Signal Events
 events = 
@@ -52,30 +34,18 @@ events =
         tileSource = S.map T tileSrc.signal
     in S.mergeMany [tileSource, zooms, mouse, keys]
 
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource)
 
-move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
-move zoom gpt pixOff = case zoom of
-    Zoom z -> let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ z))) pixOff
-              in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
+-- Applying events to the model
+applyEvent : Events -> Model -> Model
+applyEvent e m = case e of
+ Z zo -> applyZoom m zo
+ M mi -> applyMouse m mi
+ K ke -> applyKeys m ke
+ T ti -> case ti of
+           Just ts -> {m | tileSource <- ts }
+           Nothing -> {m | tileSource <- defaultTileSrc }
 
-applyZoom : Model -> ZoomChange -> Model
-applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
-
-applyMouse : Model -> (Bool, (Int, Int)) -> Model
-applyMouse model (isDown, (newX, newY)) = 
-    case model.mouseState of
-      (False, _) -> { model | mouseState <- (isDown, (newX, newY)) }
-      (True, (oldX, oldY)) -> 
-          let newModel = applyDrag model (oldX - newX, newY - oldY) 
-          in { newModel | mouseState <- (isDown, (newX, newY)) }
-
-applyKeys : Model -> (Int, Int) -> Model
-applyKeys = applyDrag
-
-applyDrag : Model -> (Int, Int) -> Model
-applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
-
+-- Zoom controls and event
 newZoom : ZoomChange -> Zoom -> Zoom
 newZoom zc zoom = 
     case zoom of
@@ -90,6 +60,43 @@ zoomChange = S.mailbox None
 
 zoomIn = ourButton (S.message zoomChange.address In) "+"
 zoomOut = ourButton (S.message zoomChange.address Out) "-"
+
+applyZoom : Model -> ZoomChange -> Model
+applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
+
+-- Events that affect the centre point: drags and arrows
+applyMouse : Model -> (Bool, (Int, Int)) -> Model
+applyMouse model (isDown, (newX, newY)) = 
+    case model.mouseState of
+      (False, _) -> { model | mouseState <- (isDown, (newX, newY)) }
+      (True, (oldX, oldY)) -> 
+          let newModel = applyDrag model (oldX - newX, newY - oldY) 
+          in { newModel | mouseState <- (isDown, (newX, newY)) }
+
+applyKeys : Model -> (Int, Int) -> Model
+applyKeys = applyDrag
+
+applyDrag : Model -> (Int, Int) -> Model
+applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
+
+move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
+move zoom gpt pixOff = case zoom of
+    Zoom z -> let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ z))) pixOff
+              in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
+
+-- Tile source : use a dropdown to switch between them
+tileSrc : S.Mailbox (Maybe TileSource)
+tileSrc = S.mailbox Nothing
+
+tileSrcDropDown : Element
+tileSrcDropDown = 
+    dropDown (S.message tileSrc.address)
+             [ ("OpenStreetMap", Just openStreetMap)
+             , ("ArcGIS", Just arcGIS)
+             ]
+
+-- user input 
+buttons = flow right [zoomIn, zoomOut, tileSrcDropDown]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
