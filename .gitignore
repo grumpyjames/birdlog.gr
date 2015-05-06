@@ -1,6 +1,5 @@
 build/*
 cache/*
-elm-package.json
 elm-stuff/
 elm.js
 *.*~
