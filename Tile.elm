@@ -1,13 +1,14 @@
 module Tile (render) where
 
-import Array exposing (Array, fromList, toList)
 import Arrays exposing (cartesian)
-import Types exposing (Model, Position, Tile, TileUrl, Zoom(..))
 import Functions exposing (andThen)
+import Tuple as T
+import Types exposing (Model, Position, Tile, TileUrl, Zoom(..))
+
+import Array exposing (Array, fromList, toList)
 import Graphics.Collage exposing (Form, collage, move, toForm)
 import Graphics.Element exposing (Element, down, flow, image, layers, right, spacer)
 import List exposing (concatMap, map)
-import Tuple as T
 
 render : (Int, Int) -> Model -> Element
 render window m =
@@ -16,16 +17,15 @@ render window m =
         mapCentre = m.tileSource.locate m.zoom m.centre
         originTile = origin mapCentre.tile tileCounts
         offset = originOffset m.tileSource.tileSize tileCounts mapCentre.position
-        tilesByRow = rows (\x y -> Tile (x,y)) <| T.merge range originTile.coordinate tileCounts
-        mapEl = flowTable (renderOneTile m) tilesByRow
-        centeredMap = centerIt mapEl offset
+        tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
+        mapEl = flowTable (renderOneTile m) tileRows
      in layers [ 
-                  (uncurry collage) window [centeredMap],
+                  (uncurry collage) window [applyPosition mapEl offset],
                   (uncurry spacer) window
                ]
 
-centerIt : Element -> Position -> Form
-centerIt el distance = move (T.map toFloat distance.pixels) <| toForm el
+applyPosition : Element -> Position -> Form
+applyPosition el distance = move (T.map toFloat distance.pixels) <| toForm el
 
 -- use the model to render a single tile
 renderOneTile : Model -> Tile -> Element
@@ -46,10 +46,11 @@ originOffset tileSize tileCounts centrePixel =
         pixelOffsets = (halfTile, halfTile) `T.subtract` centrePixel.pixels
     in Position <| flipY pixelOffsets
 
+-- Arrange an array of arrays in a nice table
 flowTable : (a -> Element) -> Array (Array a) -> Element
-flowTable render arr = 
-    let drawRow els = flow right <| map render <| toList els
-    in flow down <| map drawRow <| toList arr
+flowTable renderer arr = 
+    let flowRender dir r els = flow dir <| map r <| toList els
+    in flowRender down (flowRender right renderer) arr
 
 -- supporting functions
 type alias F2 a = a -> a -> a 
@@ -66,5 +67,4 @@ flipY = T.multiply (1, -1)
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
 
-rows : (a -> b -> c) -> (List a, List b) -> Array (Array c)
-rows f (xs,ys) = cartesian f (fromList xs) (fromList ys)
+rows f = uncurry (cartesian f)

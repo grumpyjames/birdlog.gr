@@ -1,9 +1,7 @@
-module Arrays (cartesian, main) where
+module Arrays (cartesian) where
 
 import Array exposing (..)
-import Graphics.Element exposing (show)
 import Native.Arrays
 
-cartesian = Native.Arrays.cartesian
-
-main = show <| cartesian (,) (fromList [1,2,3]) (fromList [2,3,4]) 
+cartesian : (a -> b -> c) -> List a -> List b -> Array (Array c)
+cartesian f xs ys = Native.Arrays.cartesian f (fromList xs) (fromList ys)
