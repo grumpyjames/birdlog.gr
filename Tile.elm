@@ -4,7 +4,7 @@ import Types exposing (Model, Position, Tile, TileUrl, Zoom(..))
 import Functions exposing (chain)
 import Graphics.Collage exposing (Form, collage, move, toForm)
 import Graphics.Element exposing (Element, image, layers, spacer)
-import List exposing (map)
+import List exposing (concatMap, map)
 import Tuple exposing (..)
 
 render : (Int, Int) -> Model -> Element
@@ -61,7 +61,5 @@ range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
 
 cartesianProduct : (List a, List b) -> List (a, b)
-cartesianProduct (xs,ys) = 
-    case xs of
-      z :: zs -> (cartesianProduct (zs,ys)) ++ map ((,) z) ys
-      [] -> []
+cartesianProduct (xs,ys) =
+    concatMap (\y -> map (\x -> (x, y)) xs) ys
