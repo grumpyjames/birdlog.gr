@@ -1,7 +1,5 @@
 module Tile (render) where
 
-import Arrays exposing (cartesian)
-import Functions exposing (andThen)
 import Tuple as T
 import Types exposing (Model, Position, Tile, TileUrl, Zoom(..))
 
