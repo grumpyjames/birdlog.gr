@@ -47,9 +47,9 @@ originOffset tileSize tileCounts centrePixel =
     in Position <| flipY pixelOffsets
 
 -- Arrange an array of arrays in a nice table
-flowTable : (a -> Element) -> Array (Array a) -> Element
+flowTable : (a -> Element) -> List (List a) -> Element
 flowTable renderer arr = 
-    let flowRender dir r els = flow dir <| map r <| toList els
+    let flowRender dir r els = flow dir <| map r els
     in flowRender down (flowRender right renderer) arr
 
 -- supporting functions
@@ -67,4 +67,5 @@ flipY = T.multiply (1, -1)
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
 
-rows f = uncurry (cartesian f)
+rows : (a -> b -> c) -> (List a, List b) -> List (List c)
+rows f (xs, ys) = map (\y -> map (\x -> (f x y)) xs) ys
