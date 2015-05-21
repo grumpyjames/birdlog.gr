@@ -8,8 +8,7 @@
     ],
     "exposed-modules": [
         "Tile",
-        "SlippyMap",
-        "Arrays"
+        "SlippyMap"
     ],
     "native-modules": true,
     "dependencies": { "elm-lang/core": "2.0.0 <= v < 3.0.0" },
