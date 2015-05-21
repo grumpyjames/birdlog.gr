@@ -13,5 +13,5 @@ arcGISBase = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_M
 arcGISUrl : Zoom -> Tile -> String
 arcGISUrl zoom t =
     let (x, y) = t.coordinate
-        wrap z c = c % (2 ^ z) 
+        wrap z c = c % (2 ^ (floor z)) 
     in case zoom of Zoom z -> arcGISBase ++ (toString z) ++ "/" ++ (toString y) ++ "/" ++ (toString (wrap z x)) ++ ".png"

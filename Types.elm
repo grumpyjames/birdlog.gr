@@ -8,7 +8,7 @@ module Types (GeoPoint,
               Tile,
               Zoom(..)) where
 
-type Zoom = Zoom Int
+type Zoom = Zoom Float
 type alias GeoPoint = { lat: Float, lon: Float }
 type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }

@@ -16,11 +16,11 @@ log = logBase e
 
 lon2tilex : Zoom -> Float -> Float
 lon2tilex zoom lon = 
-    case zoom of Zoom z -> (lon + 180.0) / 360.0 * (2.0 ^ (toFloat z)) 
+    case zoom of Zoom z -> (lon + 180.0) / 360.0 * (2.0 ^ (toFloat (floor z))) 
 
 lat2tiley : Zoom -> Float -> Float
 lat2tiley zoom lat = 
-    case zoom of Zoom z -> (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat z))
+    case zoom of Zoom z -> (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat (floor z)))
 
 -- currently unused
 tiley2lat y z = 

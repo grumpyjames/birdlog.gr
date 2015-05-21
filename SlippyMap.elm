@@ -93,7 +93,7 @@ applyGest m g =
 
 move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
 move zoom gpt pixOff = case zoom of
-    Zoom z -> let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ z))) pixOff
+    Zoom z -> let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
               in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 -- Tile source : use a dropdown to switch between them
