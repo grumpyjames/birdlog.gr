@@ -1,4 +1,4 @@
-module Tuple (zero, merge, map, add, multiply, subtract) where
+module Tuple (zero, merge, map, add, divide, multiply, subtract) where
 
 zero = (0, 0)
 
@@ -11,3 +11,4 @@ merge op (x1, y1) (x2, y2) = (op x1 x2, op y1 y2)
 add = merge (+)
 subtract = merge (-)
 multiply = merge (*)
+divide = merge (/)

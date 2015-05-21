@@ -4,6 +4,7 @@ import ArcGIS exposing (arcGIS)
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
 import Tile exposing (render)
+import TouchParser exposing (Gesture(..), gestures)
 import Tuple as T
 import Types exposing (GeoPoint, Zoom(..), Model, TileSource)
 
@@ -24,7 +25,7 @@ main =
     in S.map2 draw Window.dimensions (S.foldp applyEvent initialModel events)
 
 -- Events
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource)
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
 
 events : Signal Events
 events = 
@@ -32,7 +33,8 @@ events =
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         mouse = S.map M mouseState
         tileSource = S.map T tileSrc.signal
-    in S.mergeMany [tileSource, zooms, mouse, keys]
+        gests = S.map G gestures
+    in S.mergeMany [tileSource, zooms, gests, mouse, keys]
 
 
 -- Applying events to the model
@@ -40,6 +42,7 @@ applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
  Z zo -> applyZoom m zo
  M mi -> applyMouse m mi
+ G ge -> applyGest m ge
  K ke -> applyKeys m ke
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
@@ -78,6 +81,15 @@ applyKeys = applyDrag
 
 applyDrag : Model -> (Int, Int) -> Model
 applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
+
+applyGest : Model -> Maybe Gesture -> Model
+applyGest m g =
+    case g of
+      Just ge ->
+          case ge of
+            Drag (x, y) -> applyDrag m (-1 * x, y)
+            otherwise -> m
+      Nothing -> m             
 
 move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
 move zoom gpt pixOff = case zoom of
