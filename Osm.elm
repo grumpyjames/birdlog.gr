@@ -17,5 +17,5 @@ simpleOsm zoom tc = image tileSize tileSize <| osmUrl zoom tc
 osmUrl : Zoom -> Tile -> String
 osmUrl z t =
     let (x, y) = t.coordinate
-        wrap z c = c % (2 ^ z) 
-    in "http://tile.openstreetmap.org/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap (floor z) x)) ++ "/" ++ (toString y) ++ ".png"
+        wrap z c = c % (2 ^ (floor z)) 
+    in "http://tile.openstreetmap.org/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap z x)) ++ "/" ++ (toString y) ++ ".png"

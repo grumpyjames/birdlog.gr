@@ -47,10 +47,13 @@ applyEvent e m = case e of
  M mi -> (appIfClean applyMouse) m mi
  G ge -> (appIfClean applyGest) m ge
  K ke -> (appIfClean applyKeys) m ke
- C cl -> applyTime m cl 
+ C cl -> (appIfDirty applyTime) m cl 
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
+
+appIfDirty : (Model -> a -> Model) -> (Model -> a -> Model)
+appIfDirty f = \m a -> if (not m.dirty) then m else f m a
 
 appIfClean : (Model -> a -> Model) -> (Model -> a -> Model)
 appIfClean f = \m a -> if m.dirty then m else f m a 
@@ -59,8 +62,8 @@ appIfClean f = \m a -> if m.dirty then m else f m a
 newZoom : ZoomChange -> Zoom -> Zoom
 newZoom zc z = 
     case zc of
-        In a -> z + 1
-        Out a -> z - 1
+        In a -> z + a
+        Out a -> z - a
         None -> z
 
 type ZoomChange = In Float | Out Float | None
@@ -70,11 +73,15 @@ zoomChange = S.mailbox None
 zoomIn = ourButton (S.message zoomChange.address (In 1)) "+"
 zoomOut = ourButton (S.message zoomChange.address (Out 1)) "-"
 
+dirty f = (toFloat (round f)) == f
+
 applyTime : Model -> Time -> Model
 applyTime m t = 
-    let zoomAmount z = 0.1 * (z - toFloat (round z))
-        newZoom z za = if ((abs za) < 0.01) then (toFloat (round z)) else (z + za)
-    in if m.dirty then {m | zoom <- newZoom m.zoom (zoomAmount m.zoom)} else m
+    let zoomAmount = 0.5 * (toFloat (round m.zoom) - m.zoom)
+        (newZoom, done) = if ((abs zoomAmount) < 0.01) 
+                          then (toFloat (round m.zoom), True)
+                          else ((m.zoom + zoomAmount), False)
+    in { m | zoom <- newZoom, dirty <- (not done) }
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }

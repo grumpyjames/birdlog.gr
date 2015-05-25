@@ -1,7 +1,7 @@
 module Tile (render) where
 
 import Tuple as T
-import Types exposing (Model, Position, Tile, TileUrl)
+import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 
 import Array exposing (Array, fromList, toList)
 import Graphics.Collage exposing (Form, collage, move, toForm)
@@ -10,27 +10,32 @@ import List exposing (concatMap, map)
 
 render : (Int, Int) -> Model -> Element
 render window m =
-    let requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
+    let tileSize = calcTileSize m
+        requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
         tileCounts = T.map requiredTiles window
         mapCentre = m.tileSource.locate m.zoom m.centre
         originTile = origin mapCentre.tile tileCounts
-        offset = originOffset m.tileSource.tileSize tileCounts mapCentre.position
+        offset = originOffset tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        mapEl = flowTable (renderOneTile m) tileRows
+        mapEl = flowTable (renderOneTile m.zoom tileSize m.tileSource.tileUrl) tileRows
      in layers [ 
                   (uncurry collage) window [applyPosition mapEl offset],
                   (uncurry spacer) window
-               ]
+               ]        
+
+calcTileSize : Model -> Int
+calcTileSize m =
+    let frac f = f - (toFloat (floor f))
+        digizoom = floor ((frac m.zoom) * 256)
+    in m.tileSource.tileSize + digizoom
 
 applyPosition : Element -> Position -> Form
 applyPosition el distance = move (T.map toFloat distance.pixels) <| toForm el
 
 -- use the model to render a single tile
-renderOneTile : Model -> Tile -> Element
-renderOneTile model tile = 
-    let tileSize = model.tileSource.tileSize
-        url = model.tileSource.tileUrl
-    in image tileSize tileSize <| url model.zoom tile
+renderOneTile : Zoom -> Int -> TileUrl -> Tile -> Element
+renderOneTile zoom tileSize url tile = 
+    image tileSize tileSize <| url zoom tile
 
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile

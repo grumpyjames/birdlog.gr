@@ -14,4 +14,4 @@ arcGISUrl : Zoom -> Tile -> String
 arcGISUrl z t =
     let (x, y) = t.coordinate
         wrap z c = c % (2 ^ (floor z)) 
-    in arcGISBase ++ (toString z) ++ "/" ++ (toString y) ++ "/" ++ (toString (wrap z x)) ++ ".png"
+    in arcGISBase ++ (toString (floor z)) ++ "/" ++ (toString y) ++ "/" ++ (toString (wrap z x)) ++ ".png"
