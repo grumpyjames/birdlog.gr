@@ -18,4 +18,4 @@ osmUrl : Zoom -> Tile -> String
 osmUrl zoom t =
     let (x, y) = t.coordinate
         wrap z c = c % (2 ^ z) 
-    in case zoom of Zoom z -> "http://tile.openstreetmap.org/" ++ (toString z) ++ "/" ++ (toString (wrap z x)) ++ "/" ++ (toString y) ++ ".png"
+    in case zoom of Zoom z -> "http://tile.openstreetmap.org/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap (floor z) x)) ++ "/" ++ (toString y) ++ ".png"

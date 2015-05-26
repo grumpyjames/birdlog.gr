@@ -1,6 +1,7 @@
 module SlippyMap (main) where
 
 import ArcGIS exposing (arcGIS)
+import MapBox exposing (mapBox)
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
 import Tile exposing (render)
@@ -100,11 +101,14 @@ move zoom gpt pixOff = case zoom of
 tileSrc : S.Mailbox (Maybe TileSource)
 tileSrc = S.mailbox Nothing
 
+accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
+
 tileSrcDropDown : Element
 tileSrcDropDown = 
     dropDown (S.message tileSrc.address)
              [ ("OpenStreetMap", Just openStreetMap)
              , ("ArcGIS", Just arcGIS)
+             , ("MapBox", Just (mapBox "mapbox.run-bike-hike" accessToken))
              ]
 
 -- user input 
