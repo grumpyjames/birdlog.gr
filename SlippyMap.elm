@@ -5,7 +5,7 @@ import MapBox exposing (mapBox)
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
 import Tile exposing (render)
-import TouchParser exposing (Gesture(..), gestures)
+import TouchParser exposing (AffineComponents, Gesture(..), gestures)
 import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
@@ -14,6 +14,7 @@ import Graphics.Element exposing  (Element, centered, color, container, flow, la
 import Graphics.Input exposing (customButton, dropDown)
 import Signal as S
 import Text exposing (fromString)
+import Time exposing (Time, fps)
 import Window
 
 defaultTileSrc = openStreetMap
@@ -21,12 +22,12 @@ defaultTileSrc = openStreetMap
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
-        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
+        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc False
         draw = \window model -> layers [ render window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initialModel events)
 
 -- Events
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
+type Events = C Time | Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
 
 events : Signal Events
 events = 
@@ -35,34 +36,45 @@ events =
         mouse = S.map M mouseState
         tileSource = S.map T tileSrc.signal
         gests = S.map G gestures
-    in S.mergeMany [tileSource, zooms, gests, mouse, keys]
+        clockTicks = S.map C (fps 25) 
+    in S.mergeMany [tileSource, clockTicks, zooms, gests, mouse, keys]
 
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
- Z zo -> applyZoom m zo
- M mi -> applyMouse m mi
- G ge -> applyGest m ge
- K ke -> applyKeys m ke
+ Z zo -> (appIfClean applyZoom) m zo
+ M mi -> (appIfClean applyMouse) m mi
+ G ge -> (appIfClean applyGest) m ge
+ K ke -> (appIfClean applyKeys) m ke
+ C cl -> applyTime m cl 
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
+
+appIfClean : (Model -> a -> Model) -> (Model -> a -> Model)
+appIfClean f = \m a -> if m.dirty then m else f m a 
 
 -- Zoom controls and event
 newZoom : ZoomChange -> Zoom -> Zoom
 newZoom zc z = 
     case zc of
-        In -> z + 1
-        Out -> z - 1
+        In a -> z + 1
+        Out a -> z - 1
         None -> z
 
-type ZoomChange = In | Out | None
+type ZoomChange = In Float | Out Float | None
 
 zoomChange = S.mailbox None
 
-zoomIn = ourButton (S.message zoomChange.address In) "+"
-zoomOut = ourButton (S.message zoomChange.address Out) "-"
+zoomIn = ourButton (S.message zoomChange.address (In 1)) "+"
+zoomOut = ourButton (S.message zoomChange.address (Out 1)) "-"
+
+applyTime : Model -> Time -> Model
+applyTime m t = 
+    let zoomAmount z = 0.1 * (z - toFloat (round z))
+        newZoom z za = if ((abs za) < 0.01) then (toFloat (round z)) else (z + za)
+    in if m.dirty then {m | zoom <- newZoom m.zoom (zoomAmount m.zoom)} else m
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
@@ -82,12 +94,19 @@ applyKeys = applyDrag
 applyDrag : Model -> (Int, Int) -> Model
 applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
 
+isInt : Zoom -> Bool
+isInt z = (toFloat (round z)) == z
+
 applyGest : Model -> Maybe Gesture -> Model
 applyGest m g =
-    case g of
+    let pct aff = sqrt <| T.combine (+) <| T.map (\ti -> ti ^ 2) aff.scale
+        toZoomChange aff = if (pct aff) > 1 then In (pct aff) else Out (pct aff)
+    in case g of
       Just ge ->
           case ge of
             Drag (x, y) -> applyDrag m (-1 * x, y)
+            Affine ac -> applyZoom m (toZoomChange ac)
+            End -> { m | dirty <- not (isInt m.zoom) } 
             otherwise -> m
       Nothing -> m             
 

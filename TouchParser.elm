@@ -1,4 +1,4 @@
-module TouchParser (main, Gesture(..), gestures) where
+module TouchParser (main, AffineComponents, Gesture(..), gestures) where
 
 import Graphics.Element exposing (Element, show)
 import List as L exposing (filter, filterMap, head, length, map)
@@ -44,20 +44,26 @@ t (x, y) id = Touch x y id 0 0 0
 
 parse : List Touch -> TouchState -> TouchState
 parse newTs oldState = case oldState.oldTouches of
-  [] -> TouchState (L.map clone newTs) Nothing
+  [] -> TouchState (L.map clone newTs) (Just Start)
 -- don't even attempt to parse more than three touches
+-- this is kinda wrong, actually...
   (x1 :: x2 :: x3 :: x4 :: xs) -> oldState
-  otherwise -> TouchState (L.map clone newTs) (parseEvent oldState.oldTouches newTs)  
+  otherwise -> TouchState (L.map clone newTs) (maybeParse oldState.oldTouches newTs)  
 
 type alias AffineComponents = {
       rotation : Float,
       scale : (Float, Float)
 }
 
-type Gesture = Affine AffineComponents | Drag (Int, Int)
+type Gesture = Start | Affine AffineComponents | Drag (Int, Int) | End
 
 maybeParse : List Touch -> List Touch -> Maybe Gesture
-maybeParse oldTs newTs = if (length oldTs) == (length newTs) then parseEvent oldTs newTs else Nothing 
+maybeParse oldTs newTs =
+    let oldLen = (length oldTs)
+        newLen = (length newTs)
+    in if (oldLen > newLen) then Just End
+       else if (newLen > oldLen) then Just Start
+       else parseEvent oldTs newTs
 
 pt : Touch -> (Int, Int)
 pt t = (t.x * 1, t.y * 1)
