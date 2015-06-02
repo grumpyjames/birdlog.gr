@@ -1,6 +1,6 @@
 module CommonLocator (common) where
 
-import Types exposing (Locator, Position, Tile, TileOffset, Zoom(..))
+import Types exposing (Locator, Position, Tile, TileOffset, Zoom)
 
 -- This locator appears to work for most tile sources
 common : Int -> Locator
@@ -15,12 +15,12 @@ common tileSize zoom geopt =
 log = logBase e
 
 lon2tilex : Zoom -> Float -> Float
-lon2tilex zoom lon = 
-    case zoom of Zoom z -> (lon + 180.0) / 360.0 * (2.0 ^ (toFloat (floor z))) 
+lon2tilex z lon = 
+    (lon + 180.0) / 360.0 * (2.0 ^ (toFloat (floor z))) 
 
 lat2tiley : Zoom -> Float -> Float
-lat2tiley zoom lat = 
-    case zoom of Zoom z -> (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat (floor z)))
+lat2tiley z lat = 
+    (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat (floor z)))
 
 -- currently unused
 tiley2lat y z = 

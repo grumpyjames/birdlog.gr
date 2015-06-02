@@ -1,7 +1,7 @@
 module Tile (render) where
 
 import Tuple as T
-import Types exposing (Model, Position, Tile, TileUrl, Zoom(..))
+import Types exposing (Model, Position, Tile, TileUrl)
 
 import Array exposing (Array, fromList, toList)
 import Graphics.Collage exposing (Form, collage, move, toForm)

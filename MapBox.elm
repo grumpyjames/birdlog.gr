@@ -1,7 +1,7 @@
 module MapBox (mapBox) where
 
 import CommonLocator exposing (common)
-import Types exposing (Tile, TileSource, Zoom(..))
+import Types exposing (Tile, TileSource, Zoom)
 
 tileSize = 256
 
@@ -11,7 +11,7 @@ mapBox : String -> String -> TileSource
 mapBox identifier token = TileSource tileSize (common tileSize) (mapBoxUrl identifier token)
 
 mapBoxUrl : String -> String -> Zoom -> Tile -> String
-mapBoxUrl id token zoom t =
+mapBoxUrl id token z t =
     let (x, y) = t.coordinate
         wrap z c = c % (2 ^ (floor z)) 
-    in case zoom of Zoom z -> "https://api.tiles.mapbox.com/v4/" ++ id ++ "/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap z x)) ++ "/" ++ (toString y) ++ ".png?access_token=" ++ token 
+    in "https://api.tiles.mapbox.com/v4/" ++ id ++ "/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap z x)) ++ "/" ++ (toString y) ++ ".png?access_token=" ++ token 

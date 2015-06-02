@@ -7,7 +7,7 @@ import Osm exposing (openStreetMap)
 import Tile exposing (render)
 import TouchParser exposing (Gesture(..), gestures)
 import Tuple as T
-import Types exposing (GeoPoint, Zoom(..), Model, TileSource)
+import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
 import Color exposing (rgb)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
@@ -20,7 +20,7 @@ defaultTileSrc = openStreetMap
 
 main = 
     let greenwich = GeoPoint 51.48 0.0
-        initialZoom = Zoom 15
+        initialZoom = 15.0
         initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
         draw = \window model -> layers [ render window model, buttons ]
     in S.map2 draw Window.dimensions (S.foldp applyEvent initialModel events)
@@ -51,12 +51,11 @@ applyEvent e m = case e of
 
 -- Zoom controls and event
 newZoom : ZoomChange -> Zoom -> Zoom
-newZoom zc zoom = 
-    case zoom of
-      Zoom z -> case zc of
-        In -> Zoom (z + 1)
-        Out -> Zoom (z - 1)
-        None -> Zoom z
+newZoom zc z = 
+    case zc of
+        In -> z + 1
+        Out -> z - 1
+        None -> z
 
 type ZoomChange = In | Out | None
 
@@ -93,9 +92,9 @@ applyGest m g =
       Nothing -> m             
 
 move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
-move zoom gpt pixOff = case zoom of
-    Zoom z -> let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
-              in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
+move z gpt pixOff = 
+    let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
+    in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 -- Tile source : use a dropdown to switch between them
 tileSrc : S.Mailbox (Maybe TileSource)
