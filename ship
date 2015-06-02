@@ -1,0 +1,8 @@
+#!/bin/bash
+
+elm-make
+cp elm.js ../grumpyjames.github.io
+cd ../grumpyjames.github.io
+git commit -a -m "$1"
+git push origin master
+cd -
