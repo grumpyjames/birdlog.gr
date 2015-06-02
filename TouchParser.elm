@@ -1,14 +1,14 @@
 module TouchParser (main, AffineComponents, Gesture(..), gestures) where
 
 import Graphics.Element exposing (Element, show)
-import List as L exposing (filter, filterMap, head, length, map)
+import List as L exposing (filter, filterMap, head, length, map, (::))
 import Maybe as M exposing (map)
 import Signal as S exposing (constant, foldp, map)
 import Touch exposing (Touch, touches)
 import Tuple as T
 
 main : Signal Element
-main = S.map show <| foldp parse (TouchState [] Nothing) <| S.map (L.map clone) touches 
+main = S.map show <| foldp (::) [] <| foldp parse (TouchState [] Nothing) <| S.map (L.map clone) touches 
 
 -- S.constant <| show <| parse [(t (5, 11) 0)] (TouchState [(t (2, 3) 0)] Nothing) 
 
