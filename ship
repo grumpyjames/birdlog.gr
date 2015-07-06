@@ -1,6 +1,6 @@
 #!/bin/bash
 
-elm-make
+elm-make SlippyMap.elm
 cp elm.js ../grumpyjames.github.io
 cd ../grumpyjames.github.io
 git commit -a -m "$1"
