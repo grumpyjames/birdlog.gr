@@ -29,7 +29,6 @@ main =
 -- Events
 type Events = C Time | Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
 
--- FIXME: find a way to use fpsWhen
 events : Signal Events
 events = 
     let zooms = S.map Z <| zoomChange.signal 
@@ -74,7 +73,8 @@ zoomChange = S.mailbox None
 zoomIn = ourButton (S.message zoomChange.address (In 1)) "+"
 zoomOut = ourButton (S.message zoomChange.address (Out 1)) "-"
 
--- FIXME: This doesn't necessarily converge!
+dirty f = (toFloat (round f)) == f
+
 applyTime : Model -> Time -> Model
 applyTime m t = 
     let zoomAmount = 0.5 * (toFloat (round m.zoom) - m.zoom)
@@ -106,12 +106,13 @@ isInt z = (toFloat (round z)) == z
 
 applyGest : Model -> Maybe Gesture -> Model
 applyGest m g =
-    let pct aff = T.combine (+) <| T.map (\ti -> ti / 2) aff.scale
+    let pct aff = sqrt <| T.combine (+) <| T.map (\ti -> ti ^ 2) aff.scale
+        toZoomChange aff = if (pct aff) > 1 then In (pct aff) else Out (pct aff)
     in case g of
       Just ge ->
           case ge of
             Drag (x, y) -> applyDrag m (-1 * x, y)
-            Affine ac -> { m | zoom <- m.zoom * (pct ac) }
+            Affine ac -> applyZoom m (toZoomChange ac)
             End -> { m | dirty <- not (isInt m.zoom) } 
             otherwise -> m
       Nothing -> m             
