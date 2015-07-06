@@ -5,7 +5,7 @@ import MapBox exposing (mapBox)
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
 import Tile exposing (render)
-import TouchParser exposing (AffineComponents, Gesture(..), gestures)
+import TouchParser exposing (Gesture(..), gestures)
 import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
@@ -106,14 +106,10 @@ isInt z = (toFloat (round z)) == z
 
 applyGest : Model -> Maybe Gesture -> Model
 applyGest m g =
-    let pct aff = sqrt <| T.combine (+) <| T.map (\ti -> ti ^ 2) aff.scale
-        toZoomChange aff = if (pct aff) > 1 then In (pct aff) else Out (pct aff)
-    in case g of
+    case g of
       Just ge ->
           case ge of
             Drag (x, y) -> applyDrag m (-1 * x, y)
-            Affine ac -> applyZoom m (toZoomChange ac)
-            End -> { m | dirty <- not (isInt m.zoom) } 
             otherwise -> m
       Nothing -> m             
 
