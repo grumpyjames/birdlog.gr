@@ -14,7 +14,6 @@ import Graphics.Element exposing  (Element, centered, color, container, flow, la
 import Graphics.Input exposing (customButton, dropDown)
 import Signal as S
 import Text exposing (fromString)
-import Time exposing (Time, fps)
 import Window
 
 defaultTileSrc = openStreetMap
@@ -23,11 +22,21 @@ main =
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
         initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc False
-        draw = \window model -> layers [ render window model, buttons ]
-    in S.map2 draw Window.dimensions (S.foldp applyEvent initialModel events)
+    in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
+
+view window model = layers [ render window model, buttons zoomChange.address tileSrc.address ]
+
+-- Mailboxes
+zoomChange : S.Mailbox ZoomChange
+zoomChange = S.mailbox (In 0)
+
+tileSrc : S.Mailbox (Maybe TileSource)
+tileSrc = S.mailbox Nothing
 
 -- Events
-type Events = C Time | Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
+type ZoomChange = In Float | Out Float
+
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
 
 events : Signal Events
 events = 
@@ -35,19 +44,17 @@ events =
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         mouse = S.map M mouseState
         tileSource = S.map T tileSrc.signal
-        gests = S.map G gestures
-        clockTicks = S.map C (fps 25) 
-    in S.mergeMany [tileSource, clockTicks, zooms, gests, mouse, keys]
+        gests = S.map G gestures 
+    in S.mergeMany [tileSource, zooms, gests, mouse, keys]
 
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
- Z zo -> (appIfClean applyZoom) m zo
- M mi -> (appIfClean applyMouse) m mi
- G ge -> (appIfClean applyGest) m ge
- K ke -> (appIfClean applyKeys) m ke
- C cl -> (appIfDirty applyTime) m cl 
+ Z zo -> applyZoom m zo
+ M mi -> applyMouse m mi
+ G ge -> applyGest m ge
+ K ke -> applyKeys m ke 
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
@@ -59,29 +66,14 @@ appIfClean : (Model -> a -> Model) -> (Model -> a -> Model)
 appIfClean f = \m a -> if m.dirty then m else f m a 
 
 -- Zoom controls and event
-newZoom : ZoomChange -> Zoom -> Zoom
+newZoom : ZoomChange-> Zoom -> Zoom
 newZoom zc z = 
     case zc of
         In a -> z + a
         Out a -> z - a
-        None -> z
 
-type ZoomChange = In Float | Out Float | None
-
-zoomChange = S.mailbox None
-
-zoomIn = ourButton (S.message zoomChange.address (In 1)) "+"
-zoomOut = ourButton (S.message zoomChange.address (Out 1)) "-"
-
-dirty f = (toFloat (round f)) == f
-
-applyTime : Model -> Time -> Model
-applyTime m t = 
-    let zoomAmount = 0.5 * (toFloat (round m.zoom) - m.zoom)
-        (newZoom, done) = if ((abs zoomAmount) < 0.01) 
-                          then (toFloat (round m.zoom), True)
-                          else ((m.zoom + zoomAmount), False)
-    in { m | zoom <- newZoom, dirty <- (not done) }
+zoomIn address = ourButton (S.message address (In 1)) "+"
+zoomOut address = ourButton (S.message address (Out 1)) "-"
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
@@ -118,22 +110,18 @@ move z gpt pixOff =
     let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
     in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
--- Tile source : use a dropdown to switch between them
-tileSrc : S.Mailbox (Maybe TileSource)
-tileSrc = S.mailbox Nothing
-
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
 
-tileSrcDropDown : Element
-tileSrcDropDown = 
-    dropDown (S.message tileSrc.address)
+tileSrcDropDown : S.Address (Maybe TileSource) -> Element
+tileSrcDropDown address = 
+    dropDown (S.message address)
              [ ("OpenStreetMap", Just openStreetMap)
              , ("ArcGIS", Just arcGIS)
              , ("MapBox", Just (mapBox "mapbox.run-bike-hike" accessToken))
              ]
 
 -- user input 
-buttons = flow right [zoomIn, zoomOut, tileSrcDropDown]
+buttons zoomAddress tileSrcAddress = flow right [zoomIn zoomAddress, zoomOut zoomAddress, tileSrcDropDown tileSrcAddress]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
