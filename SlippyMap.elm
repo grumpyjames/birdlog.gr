@@ -124,7 +124,7 @@ upC = rgb 248 248 248
 ourButton : S.Message -> String -> Element
 ourButton msg txt = 
     let el = centered <| fromString txt
-        cn = container 30 30 middle el
+        cn = container 100 100 middle el
         up = color upC cn
         down = color downC cn
         hover = color hoverC cn

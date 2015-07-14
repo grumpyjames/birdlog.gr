@@ -25,11 +25,11 @@ t : (Int, Int) -> Int -> Touch
 t (x, y) id = Touch x y id 0 0 0
 
 parse : List Touch -> TouchState -> TouchState
-parse newTs oldState = case oldState.oldTouches of
-  [] -> TouchState (L.map clone newTs) (Just Start)
-  -- just one touch for now
-  (x1 :: x2 :: xs) -> oldState
-  otherwise -> TouchState (L.map clone newTs) (maybeParse oldState.oldTouches newTs)  
+parse newTs oldState = case newTs of
+  (t1 :: t2 :: ts) -> oldState
+  otherwise -> case oldState.oldTouches of
+                 [] -> TouchState (L.map clone newTs) (Just Start)
+                 otherwise -> TouchState (L.map clone newTs) (maybeParse oldState.oldTouches newTs)  
 
 type Gesture = Start | Drag (Int, Int) | End
 
