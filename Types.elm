@@ -24,7 +24,6 @@ type alias Model = {
       centre : GeoPoint,
       zoom : Zoom,
       mouseState : (Bool, (Int, Int)),
-      tileSource : TileSource,
-      dirty : Bool
+      tileSource : TileSource
 }
 
