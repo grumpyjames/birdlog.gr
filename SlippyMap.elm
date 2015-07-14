@@ -59,12 +59,6 @@ applyEvent e m = case e of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
 
-appIfDirty : (Model -> a -> Model) -> (Model -> a -> Model)
-appIfDirty f = \m a -> if (not m.dirty) then m else f m a
-
-appIfClean : (Model -> a -> Model) -> (Model -> a -> Model)
-appIfClean f = \m a -> if m.dirty then m else f m a 
-
 -- Zoom controls and event
 newZoom : ZoomChange-> Zoom -> Zoom
 newZoom zc z = 
