@@ -12,9 +12,9 @@ import Types exposing (GeoPoint, Model, TileSource, Zoom)
 import Color exposing (rgb)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
 import Graphics.Input exposing (customButton, dropDown)
-import Html exposing (Html, button, div, text, select, option, fromElement)
+import Html exposing (Attribute, Html, button, div, text, select, option, fromElement)
 import Html.Attributes exposing (style)
-import Html.Events exposing (onClick, on, onMouseDown)
+import Html.Events exposing (onClick, on, onMouseDown, targetValue)
 import Json.Decode exposing (value)
 import List as L
 import Signal as S
@@ -116,9 +116,19 @@ move z gpt pixOff =
 
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
 
+ons : S.Address (Maybe TileSource) -> Attribute
+ons add = let 
+    toMsg v = case v of
+                "OpenStreetMap" -> Just openStreetMap
+                "ArcGIS" -> Just arcGIS
+                "MapBox" -> Just (mapBox "mapbox.run-bike-hike" accessToken)
+                otherwise -> Nothing
+    in on "change" targetValue (\v -> S.message add (toMsg v))
+
 tileSrcDropDown : S.Address (Maybe TileSource) -> Html
 tileSrcDropDown address = 
-    select [] [option [] [text "OpenStreetMap"],
+    let onChange = ons address
+    in select [onChange] [option [] [text "OpenStreetMap"],
                option [] [text "ArcGIS"],
                option [] [text "MapBox"]] 
 
