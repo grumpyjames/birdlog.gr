@@ -6,22 +6,26 @@ import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 import Array exposing (Array, fromList, toList)
 import Graphics.Collage exposing (Form, collage, move, toForm)
 import Graphics.Element exposing (Element, down, flow, image, layers, right, spacer)
+import Html exposing (Html, div, fromElement)
+import Html.Attributes exposing (style)
 import List exposing (concatMap, map)
 
-render : (Int, Int) -> Model -> List Element
+render : (Int, Int) -> Model -> Html
 render window m =
     let tileSize = calcTileSize m
         requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
         tileCounts = T.map requiredTiles window
         mapCentre = m.tileSource.locate m.zoom m.centre
         originTile = origin mapCentre.tile tileCounts
-        offset = originOffset tileSize tileCounts mapCentre.position
+        offset = originOffset window tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         mapEl = flowTable (renderOneTile m.zoom tileSize m.tileSource.tileUrl) tileRows
-     in [ 
-      (uncurry collage) window [applyPosition mapEl offset],
-      (uncurry spacer) window
-     ]        
+        attrs = 
+            [style [("overflow", "hidden"), ("position", "absolute"), ("width", px (fst window)), ("height", px (snd window)), ("padding", px 0), ("margin", px 0)]]
+    in div attrs [applyPosition mapEl offset]
+
+px : Int -> String
+px n = (toString n) ++ "px"
 
 calcTileSize : Model -> Int
 calcTileSize m =
@@ -29,8 +33,9 @@ calcTileSize m =
         digizoom = floor ((frac m.zoom) * 256)
     in m.tileSource.tileSize + digizoom
 
-applyPosition : Element -> Position -> Form
-applyPosition el distance = move (T.map toFloat distance.pixels) <| toForm el
+applyPosition : Element -> Position -> Html
+applyPosition el distance = 
+    div [style [("left", px (fst distance.pixels)), ("top", px (snd distance.pixels)), ("position", "absolute")]] [fromElement el]
 
 -- use the model to render a single tile
 renderOneTile : Zoom -> Int -> TileUrl -> Tile -> Element
@@ -43,11 +48,13 @@ origin centreTile tileCounts =
     Tile <| centreTile.coordinate `T.subtract` (T.map (vid 2) tileCounts)
 
 -- How far should the origin tile's top left corner be from that of the viewport?
-originOffset : Int -> (Int, Int) -> Position -> Position
-originOffset tileSize tileCounts centrePixel =
-    let halfTile = tileSize // 2
+originOffset : (Int, Int) -> Int -> (Int, Int) -> Position -> Position
+originOffset window tileSize tileCounts centrePixel =
+    let totalTilingSize = T.map ((*) tileSize) tileCounts 
+        centerInWindow = T.map (\pix -> pix // -2) (totalTilingSize `T.subtract` window)
+        halfTile = tileSize // 2
         pixelOffsets = (halfTile, halfTile) `T.subtract` centrePixel.pixels
-    in Position <| flipY pixelOffsets
+    in Position <| (centerInWindow `T.add` pixelOffsets)
 
 -- Arrange an array of arrays in a nice table
 flowTable : (a -> Element) -> List (List a) -> Element

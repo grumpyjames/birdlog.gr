@@ -12,6 +12,11 @@ import Types exposing (GeoPoint, Model, TileSource, Zoom)
 import Color exposing (rgb)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
 import Graphics.Input exposing (customButton, dropDown)
+import Html exposing (Html, button, div, text, select, option, fromElement)
+import Html.Attributes exposing (style)
+import Html.Events exposing (onClick, on, onMouseDown)
+import Json.Decode exposing (value)
+import List as L
 import Signal as S
 import Text exposing (fromString)
 import Window
@@ -24,7 +29,12 @@ main =
         initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
-view window model = layers (render window model ++ [(buttons zoomChange.address tileSrc.address)])
+view window model = 
+    let mapLayer = render window model
+        px n = (toString n) ++ "px"           
+        styles = style [("position", "absolute"), ("width", px (fst window)), ("height", px (snd window)), ("padding", px 0), ("margin", px 0)]
+        controls = buttons [styles] zoomChange.address tileSrc.address
+    in div [styles] [mapLayer, controls]
 
 -- Mailboxes
 zoomChange : S.Mailbox ZoomChange
@@ -60,14 +70,14 @@ applyEvent e m = case e of
            Nothing -> {m | tileSource <- defaultTileSrc }
 
 -- Zoom controls and event
-newZoom : ZoomChange-> Zoom -> Zoom
+newZoom : ZoomChange -> Zoom -> Zoom
 newZoom zc z = 
     case zc of
         In a -> z + a
         Out a -> z - a
 
-zoomIn address = ourButton (S.message address (In 1)) "+"
-zoomOut address = ourButton (S.message address (Out 1)) "-"
+zoomIn address = ourButton address (In 1) "+"
+zoomOut address = ourButton address (Out 1) "-"
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
@@ -106,26 +116,29 @@ move z gpt pixOff =
 
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
 
-tileSrcDropDown : S.Address (Maybe TileSource) -> Element
+tileSrcDropDown : S.Address (Maybe TileSource) -> Html
 tileSrcDropDown address = 
-    dropDown (S.message address)
-             [ ("OpenStreetMap", Just openStreetMap)
-             , ("ArcGIS", Just arcGIS)
-             , ("MapBox", Just (mapBox "mapbox.run-bike-hike" accessToken))
-             ]
+    select [] [option [] [text "OpenStreetMap"],
+               option [] [text "ArcGIS"],
+               option [] [text "MapBox"]] 
+
+-- (S.message address)
+--              [ ("OpenStreetMap", Just openStreetMap)
+--              , ("ArcGIS", Just arcGIS)
+--              , ("MapBox", Just (mapBox "mapbox.run-bike-hike" accessToken))
+--              ]
 
 -- user input 
-buttons zoomAddress tileSrcAddress = flow right [zoomIn zoomAddress, zoomOut zoomAddress, tileSrcDropDown tileSrcAddress]
+buttons attrs zoomAddress tileSrcAddress = 
+    div attrs [zoomIn zoomAddress, zoomOut zoomAddress, tileSrcDropDown tileSrcAddress]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
 upC = rgb 248 248 248
 
-ourButton : S.Message -> String -> Element
-ourButton msg txt = 
-    let el = centered <| fromString txt
-        cn = container 100 100 middle el
-        up = color upC cn
-        down = color downC cn
-        hover = color hoverC cn
-    in customButton msg up hover down
+ourButton : (S.Address a) -> a -> String -> Html
+ourButton address msg txt = 
+    let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
+-- [onClick]
+--, ]
+    in button (L.map (\e -> e address msg) events) [text txt]
