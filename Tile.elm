@@ -8,7 +8,7 @@ import Graphics.Collage exposing (Form, collage, move, toForm)
 import Graphics.Element exposing (Element, down, flow, image, layers, right, spacer)
 import List exposing (concatMap, map)
 
-render : (Int, Int) -> Model -> Element
+render : (Int, Int) -> Model -> List Element
 render window m =
     let tileSize = calcTileSize m
         requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
@@ -18,10 +18,10 @@ render window m =
         offset = originOffset tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         mapEl = flowTable (renderOneTile m.zoom tileSize m.tileSource.tileUrl) tileRows
-     in layers [ 
-                  (uncurry collage) window [applyPosition mapEl offset],
-                  (uncurry spacer) window
-               ]        
+     in [ 
+      (uncurry collage) window [applyPosition mapEl offset],
+      (uncurry spacer) window
+     ]        
 
 calcTileSize : Model -> Int
 calcTileSize m =

@@ -24,7 +24,7 @@ main =
         initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
-view window model = layers [ render window model, buttons zoomChange.address tileSrc.address ]
+view window model = layers (render window model ++ [(buttons zoomChange.address tileSrc.address)])
 
 -- Mailboxes
 zoomChange : S.Mailbox ZoomChange
