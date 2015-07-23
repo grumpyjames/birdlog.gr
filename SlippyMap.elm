@@ -59,7 +59,6 @@ events =
         gests = S.map G gestures 
     in S.mergeMany [tileSource, zooms, gests, mouse, keys]
 
-
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
@@ -132,17 +131,9 @@ ons add = let
 tileSrcDropDown : S.Address (Maybe TileSource) -> Html
 tileSrcDropDown address = 
     let onChange = ons address
-    in select [onChange] [option [] [text "OpenStreetMap"],
-               option [] [text "ArcGIS"],
-               option [] [text "MapBox"]] 
+    in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]
+                
 
--- (S.message address)
---              [ ("OpenStreetMap", Just openStreetMap)
---              , ("ArcGIS", Just arcGIS)
---              , ("MapBox", Just (mapBox "mapbox.run-bike-hike" accessToken))
---              ]
-
--- user input 
 buttons attrs zoomAddress tileSrcAddress = 
     div attrs [zoomIn zoomAddress, zoomOut zoomAddress, tileSrcDropDown tileSrcAddress]
 
@@ -153,6 +144,4 @@ upC = rgb 248 248 248
 ourButton : (S.Address a) -> a -> String -> Html
 ourButton address msg txt = 
     let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
--- [onClick]
---, ]
     in button (L.map (\e -> e address msg) events) [text txt]
