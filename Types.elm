@@ -1,4 +1,5 @@
 module Types (GeoPoint,
+              Hdpi,
               Locator,
               Model,
               Position,              
@@ -13,6 +14,7 @@ type alias GeoPoint = { lat: Float, lon: Float }
 type alias Tile = { coordinate : (Int, Int) }
 type alias Position = { pixels : (Int, Int) }
 type alias TileOffset = { tile: Tile, position: Position }
+type alias Hdpi = Bool
 type alias Locator = Zoom -> GeoPoint -> TileOffset
 type alias TileUrl = Zoom -> Tile -> String
 type alias TileSource = {
@@ -26,4 +28,3 @@ type alias Model = {
       mouseState : (Bool, (Int, Int)),
       tileSource : TileSource
 }
-

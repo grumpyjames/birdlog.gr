@@ -21,7 +21,9 @@ import Signal as S
 import Text exposing (fromString)
 import Window
 
-defaultTileSrc = openStreetMap
+port hdpi : Bool
+
+defaultTileSrc = mapBoxSource
 
 main = 
     let greenwich = GeoPoint 51.48 0.0
@@ -116,12 +118,14 @@ move z gpt pixOff =
 
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
 
+mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
+
 ons : S.Address (Maybe TileSource) -> Attribute
 ons add = let 
     toMsg v = case v of
                 "OpenStreetMap" -> Just openStreetMap
                 "ArcGIS" -> Just arcGIS
-                "MapBox" -> Just (mapBox "mapbox.run-bike-hike" accessToken)
+                "MapBox" -> Just mapBoxSource
                 otherwise -> Nothing
     in on "change" targetValue (\v -> S.message add (toMsg v))
 

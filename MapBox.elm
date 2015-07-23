@@ -1,17 +1,16 @@
 module MapBox (mapBox) where
 
 import CommonLocator exposing (common)
-import Types exposing (Tile, TileSource, Zoom)
+import Types exposing (Hdpi, Tile, TileSource, Zoom)
 
-tileSize = 256
+mapBox : Hdpi -> String -> String -> TileSource
+mapBox hdpi identifier token = 
+    let tileSize = if hdpi then 512 else 256
+    in TileSource tileSize (common tileSize) (mapBoxUrl hdpi identifier token)
 
-locate = common tileSize
-
-mapBox : String -> String -> TileSource
-mapBox identifier token = TileSource tileSize (common tileSize) (mapBoxUrl identifier token)
-
-mapBoxUrl : String -> String -> Zoom -> Tile -> String
-mapBoxUrl id token z t =
+mapBoxUrl : Hdpi -> String -> String -> Zoom -> Tile -> String
+mapBoxUrl hdpi id token z t =
     let (x, y) = t.coordinate
-        wrap z c = c % (2 ^ (floor z)) 
-    in "https://api.tiles.mapbox.com/v4/" ++ id ++ "/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap z x)) ++ "/" ++ (toString y) ++ ".png?access_token=" ++ token 
+        wrap z c = c % (2 ^ (floor z))
+        extra = if hdpi then "@2x" else "" 
+    in "https://api.tiles.mapbox.com/v4/" ++ id ++ "/" ++ (toString (floor z)) ++ "/" ++ (toString (wrap z x)) ++ "/" ++ (toString y) ++ extra ++ ".png?access_token=" ++ token 
