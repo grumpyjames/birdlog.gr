@@ -10,13 +10,15 @@ import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
 import Color exposing (rgb)
+import Debug exposing (log)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
 import Graphics.Input exposing (customButton, dropDown)
 import Html exposing (Attribute, Html, button, div, text, select, option, fromElement)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick, on, onMouseDown, targetValue)
-import Json.Decode exposing (value)
+import Json.Decode as J exposing (Decoder, object2, int, value, (:=))
 import List as L
+import Maybe as M
 import Signal as S
 import Text exposing (fromString)
 import Window
@@ -28,17 +30,32 @@ defaultTileSrc = mapBoxSource
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
-        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc
+        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc Nothing
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
+
+clickDecoder : Decoder (Maybe (Int, Int))
+clickDecoder = J.map (M.Just) <| object2 (,) ("pageX" := int) ("pageY" := int)
 
 view window model = 
     let mapLayer = render window model
         px n = (toString n) ++ "px"           
         styles = style [("position", "absolute"), ("width", px (fst window)), ("height", px (snd window)), ("padding", px 0), ("margin", px 0)]
-        controls = buttons [styles] zoomChange.address tileSrc.address
-    in div [styles] [mapLayer, controls]
+        controls = buttons [style [("position", "absolute")]] zoomChange.address tileSrc.address
+        submitForm = toList [(M.map (\clicked -> toForm clicks.address styles clicked) model.clicked)]
+        clickCatcher = div [styles, (on "click" clickDecoder (S.message clicks.address))] []
+    in div [styles] ([mapLayer, clickCatcher, controls] ++ submitForm)
+
+toForm : S.Address (Maybe (Int, Int)) -> Attribute -> (Int, Int) -> Html
+toForm addr attr clickPoint = 
+    div [attr, onClick addr Nothing] [text (toString clickPoint)]
+
+toList : List (Maybe a) -> List a
+toList l = L.filterMap (\x -> x) l
 
 -- Mailboxes
+clicks : S.Mailbox (Maybe (Int, Int))
+clicks = S.mailbox Nothing
+
 zoomChange : S.Mailbox ZoomChange
 zoomChange = S.mailbox (In 0)
 
@@ -48,7 +65,7 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture)
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture) | C (Maybe (Int, Int))
 
 events : Signal Events
 events = 
@@ -57,7 +74,8 @@ events =
         mouse = S.map M mouseState
         tileSource = S.map T tileSrc.signal
         gests = S.map G gestures 
-    in S.mergeMany [tileSource, zooms, gests, mouse, keys]
+        klix = S.map C clicks.signal
+    in S.mergeMany [tileSource, zooms, gests, klix, mouse, keys]
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
@@ -66,6 +84,7 @@ applyEvent e m = case e of
  M mi -> applyMouse m mi
  G ge -> applyGest m ge
  K ke -> applyKeys m ke 
+ C c -> applyClick m c
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
@@ -79,6 +98,10 @@ newZoom zc z =
 
 zoomIn address = ourButton address (In 1) "+"
 zoomOut address = ourButton address (Out 1) "-"
+
+applyClick : Model -> Maybe (Int, Int) -> Model
+applyClick m c = 
+    { m | clicked <- c }
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
