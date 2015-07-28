@@ -4,6 +4,7 @@ import ArcGIS exposing (arcGIS)
 import MapBox exposing (mapBox)
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
+import Styles exposing (..)
 import Tile exposing (render)
 import TouchParser exposing (Gesture(..), gestures)
 import Tuple as T
@@ -11,10 +12,11 @@ import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
 import Color exposing (rgb)
 import Debug exposing (log)
+import Graphics.Collage exposing (circle, dotted, collage, outlined, move)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
 import Graphics.Input exposing (customButton, dropDown)
-import Html exposing (Attribute, Html, button, div, text, select, option, fromElement)
-import Html.Attributes exposing (style)
+import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
+import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (onClick, on, onMouseDown, targetValue)
 import Json.Decode as J exposing (Decoder, object2, int, value, (:=))
 import List as L
@@ -37,20 +39,38 @@ clickDecoder : Decoder (Maybe (Int, Int))
 clickDecoder = J.map (M.Just) <| object2 (,) ("pageX" := int) ("pageY" := int)
 
 view window model = 
-    let mapLayer = render window model
-        px n = (toString n) ++ "px"           
-        styles = style [("position", "absolute"), ("width", px (fst window)), ("height", px (snd window)), ("padding", px 0), ("margin", px 0)]
-        controls = buttons [style [("position", "absolute")]] zoomChange.address tileSrc.address
-        submitForm = toList [(M.map (\clicked -> toForm clicks.address styles clicked) model.clicked)]
-        clickCatcher = div [styles, (on "click" clickDecoder (S.message clicks.address))] []
-    in div [styles] ([mapLayer, clickCatcher, controls] ++ submitForm)
+    let mapLayer = render window model        
+        styles = style (absolute ++ dimensions window ++ zeroMargin)
+        controls = buttons [style absolute] zoomChange.address tileSrc.address
+        spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers clicks.address window clicked) model.clicked)
+        clickCatcher = div [styles, (on "dblclick" clickDecoder (S.message clicks.address))] []
+    in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
-toForm : S.Address (Maybe (Int, Int)) -> Attribute -> (Int, Int) -> Html
-toForm addr attr clickPoint = 
-    div [attr, onClick addr Nothing] [text (toString clickPoint)]
+vcentred : (Int, Int) -> Html -> Html
+vcentred size content = 
+    let cell = div [style [("display", "table-cell"), ("vertical-align", "middle")]] [content]
+    in div [style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])] [cell]
 
-toList : List (Maybe a) -> List a
-toList l = L.filterMap (\x -> x) l
+circleDiv : (Int, Int) -> Html
+circleDiv clickPoint = let
+    radius = 15
+    diameter = 2 * radius
+    dims = (diameter, diameter)
+    realPosition = clickPoint `T.subtract` (radius, radius)
+    in div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thin")])] []
+
+spotLayers : S.Address (Maybe (Int, Int)) -> (Int, Int) -> (Int, Int) -> List Html
+spotLayers addr size clickPoint =
+    let indicator = circleDiv clickPoint
+        saw = text "Spotted: "
+        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1" ] []
+        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin" ] []
+        at = text " at "
+        submit = input [ Attr.type' "submit", onClick addr Nothing ] [text "Save"]
+        location = input [ Attr.type' "text", Attr.value (toString clickPoint), Attr.disabled True ] []
+        theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
+        content = div [ (style [("text-align", "center")]) ] [theForm]
+    in [indicator, vcentred size content]
 
 -- Mailboxes
 clicks : S.Mailbox (Maybe (Int, Int))
