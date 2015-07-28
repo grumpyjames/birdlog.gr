@@ -43,13 +43,14 @@ view window model =
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] zoomChange.address tileSrc.address
         spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers clicks.address window clicked) model.clicked)
-        clickCatcher = div [styles, (on "dblclick" clickDecoder (S.message clicks.address))] []
+        dblClick = on "dblclick" clickDecoder (S.message clicks.address)
+        clickCatcher = div [styles, dblClick] []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
-vcentred : (Int, Int) -> Html -> Html
-vcentred size content = 
+vcentred : List Attribute -> (Int, Int) -> Html -> Html
+vcentred attrs size content = 
     let cell = div [style [("display", "table-cell"), ("vertical-align", "middle")]] [content]
-    in div [style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])] [cell]
+    in div (attrs ++ [style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
 
 circleDiv : (Int, Int) -> Html
 circleDiv clickPoint = let
@@ -62,15 +63,16 @@ circleDiv clickPoint = let
 spotLayers : S.Address (Maybe (Int, Int)) -> (Int, Int) -> (Int, Int) -> List Html
 spotLayers addr size clickPoint =
     let indicator = circleDiv clickPoint
+        cancel = onClick addr Nothing
         saw = text "Spotted: "
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1" ] []
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin" ] []
         at = text " at "
-        submit = input [ Attr.type' "submit", onClick addr Nothing ] [text "Save"]
+        submit = input [ Attr.type' "submit", cancel ] [text "Save"]
         location = input [ Attr.type' "text", Attr.value (toString clickPoint), Attr.disabled True ] []
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
         content = div [ (style [("text-align", "center")]) ] [theForm]
-    in [indicator, vcentred size content]
+    in [indicator, vcentred [cancel] size content]
 
 -- Mailboxes
 clicks : S.Mailbox (Maybe (Int, Int))
