@@ -3,7 +3,7 @@ module SlippyMap (main) where
 import ArcGIS exposing (arcGIS)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Movement exposing (keyState, mouseState)
+import Movement exposing (keyState)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile exposing (render)
@@ -91,25 +91,22 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture) | C (Maybe (Int, Int)) | O (Maybe Event)
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture) | C (Maybe (Int, Int)) | O (Maybe Event)
 
 events : Signal Events
 events = 
     let zooms = S.map Z <| zoomChange.signal 
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
-        mouse = S.map M mouseState
         tileSource = S.map T tileSrc.signal
         gests = S.map G gestures 
         klix = S.map C clicks.signal
         ot = S.map O <| index.sign metacarpal.signal
-    in S.mergeMany [tileSource, zooms, gests, klix, mouse, keys, ot]
+    in S.mergeMany [tileSource, zooms, gests, klix, keys, ot]
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
  Z zo -> applyZoom m zo
- M mi -> m
---applyMouse m mi
  G ge -> m
 --applyGest m ge
  K ke -> applyKeys m ke 
@@ -149,15 +146,6 @@ applyClick m c =
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
-
--- Events that affect the centre point: drags and arrows
-applyMouse : Model -> (Bool, (Int, Int)) -> Model
-applyMouse model (isDown, (newX, newY)) = 
-    case model.mouseState of
-      (False, _) -> { model | mouseState <- (isDown, (newX, newY)) }
-      (True, (oldX, oldY)) -> 
-          let newModel = applyDrag model (oldX - newX, newY - oldY) 
-          in { newModel | mouseState <- (isDown, (newX, newY)) }
 
 applyKeys : Model -> (Int, Int) -> Model
 applyKeys = applyDrag
