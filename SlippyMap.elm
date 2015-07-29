@@ -2,6 +2,7 @@ module SlippyMap (main) where
 
 import ArcGIS exposing (arcGIS)
 import MapBox exposing (mapBox)
+import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
 import Movement exposing (keyState, mouseState)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
@@ -43,8 +44,8 @@ view window model =
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] zoomChange.address tileSrc.address
         spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers clicks.address window clicked) model.clicked)
-        dblClick = on "dblclick" clickDecoder (S.message clicks.address)
-        clickCatcher = div [styles, dblClick] []
+        dblClick = index.attr metacarpal.address
+        clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
 vcentred : List Attribute -> (Int, Int) -> Html -> Html
@@ -78,6 +79,9 @@ spotLayers addr size clickPoint =
 clicks : S.Mailbox (Maybe (Int, Int))
 clicks = S.mailbox Nothing
 
+metacarpal : S.Mailbox InnerEvent
+metacarpal = S.mailbox index.zero 
+
 zoomChange : S.Mailbox ZoomChange
 zoomChange = S.mailbox (In 0)
 
@@ -87,7 +91,7 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture) | C (Maybe (Int, Int))
+type Events = Z ZoomChange | M (Bool, (Int, Int)) | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture) | C (Maybe (Int, Int)) | O (Maybe Event)
 
 events : Signal Events
 events = 
@@ -97,19 +101,37 @@ events =
         tileSource = S.map T tileSrc.signal
         gests = S.map G gestures 
         klix = S.map C clicks.signal
-    in S.mergeMany [tileSource, zooms, gests, klix, mouse, keys]
+        ot = S.map O <| index.sign metacarpal.signal
+    in S.mergeMany [tileSource, zooms, gests, klix, mouse, keys, ot]
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
  Z zo -> applyZoom m zo
- M mi -> applyMouse m mi
- G ge -> applyGest m ge
+ M mi -> m
+--applyMouse m mi
+ G ge -> m
+--applyGest m ge
  K ke -> applyKeys m ke 
  C c -> applyClick m c
+ O o -> applyOooh m o
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
+
+applyOooh : Model -> Maybe Event -> Model
+applyOooh m o = 
+    case o of
+      Just e -> 
+          case e of
+            Metacarpal.Drag pn ->
+                applyDrag m pn
+            DoubleClick pn ->
+                applyClick m (Just pn)
+            otherwise ->
+                m
+      otherwise -> 
+          m
 
 -- Zoom controls and event
 newZoom : ZoomChange -> Zoom -> Zoom
@@ -151,7 +173,7 @@ applyGest m g =
     case g of
       Just ge ->
           case ge of
-            Drag (x, y) -> applyDrag m (-1 * x, y)
+            TouchParser.Drag (x, y) -> applyDrag m (-1 * x, y)
             otherwise -> m
       Nothing -> m             
 
