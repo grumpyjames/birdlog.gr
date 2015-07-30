@@ -7,7 +7,6 @@ import Movement exposing (keyState)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile exposing (render)
-import TouchParser exposing (Gesture(..), gestures)
 import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
@@ -91,38 +90,35 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | G (Maybe Gesture) | C (Maybe (Int, Int)) | O (Maybe Event)
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event)
 
 events : Signal Events
 events = 
     let zooms = S.map Z <| zoomChange.signal 
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         tileSource = S.map T tileSrc.signal
-        gests = S.map G gestures 
         klix = S.map C clicks.signal
         ot = S.map O <| index.sign metacarpal.signal
-    in S.mergeMany [tileSource, zooms, gests, klix, keys, ot]
+    in S.mergeMany [tileSource, zooms, klix, keys, ot]
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
 applyEvent e m = case e of
  Z zo -> applyZoom m zo
- G ge -> m
---applyGest m ge
  K ke -> applyKeys m ke 
  C c -> applyClick m c
- O o -> applyOooh m o
+ O o -> applyO m o
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
 
-applyOooh : Model -> Maybe Event -> Model
-applyOooh m o = 
+applyO : Model -> Maybe Event -> Model
+applyO m o = 
     case o of
       Just e -> 
           case e of
             Metacarpal.Drag pn ->
-                applyDrag m pn
+                applyDrag m ((1, -1) `T.multiply` pn)
             DoubleClick pn ->
                 applyClick m (Just pn)
             otherwise ->
@@ -155,15 +151,6 @@ applyDrag m drag = { m | centre <- move m.zoom m.centre drag }
 
 isInt : Zoom -> Bool
 isInt z = (toFloat (round z)) == z
-
-applyGest : Model -> Maybe Gesture -> Model
-applyGest m g =
-    case g of
-      Just ge ->
-          case ge of
-            TouchParser.Drag (x, y) -> applyDrag m (-1 * x, y)
-            otherwise -> m
-      Nothing -> m             
 
 move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt pixOff = 
