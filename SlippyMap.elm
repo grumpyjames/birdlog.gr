@@ -11,16 +11,17 @@ import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom)
 
 import Color exposing (rgb)
-import Debug exposing (log)
+import Debug exposing (crash, log)
 import Graphics.Collage exposing (circle, dotted, collage, outlined, move)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
 import Graphics.Input exposing (customButton, dropDown)
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
 import Html.Attributes as Attr exposing (style)
-import Html.Events exposing (onClick, on, onMouseDown, targetValue)
-import Json.Decode as J exposing (Decoder, object2, int, value, (:=))
+import Html.Events exposing (Options, onClick, on, onWithOptions, onMouseDown, targetValue)
+import Json.Decode as J exposing (Decoder, object2, int, value, (:=), fail)
 import List as L
 import Maybe as M
+import Result
 import Signal as S
 import Text exposing (fromString)
 import Window
@@ -47,10 +48,10 @@ view window model =
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
-vcentred : List Attribute -> (Int, Int) -> Html -> Html
-vcentred attrs size content = 
-    let cell = div [style [("display", "table-cell"), ("vertical-align", "middle")]] [content]
-    in div (attrs ++ [style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
+vcentred : String -> List Attribute -> (Int, Int) -> Html -> Html
+vcentred ident attrs size content = 
+    let cell = div (attrs ++ [style [("display", "table-cell"), ("vertical-align", "middle"), ("text-align", "center")], Attr.id ident]) [content]
+    in div ([style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
 
 circleDiv : (Int, Int) -> Html
 circleDiv clickPoint = let
@@ -60,19 +61,36 @@ circleDiv clickPoint = let
     realPosition = clickPoint `T.subtract` (radius, radius)
     in div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thin")])] []
 
+dead : S.Mailbox (String)
+dead = S.mailbox ""
+
+-- can't stop the prop
+stopTheProp : String -> Attribute
+stopTheProp event = 
+    let opts = Options True False
+    in onWithOptions event opts (J.succeed "!") (Signal.message dead.address)
+
+targetId : Decoder String
+targetId = ("target" := ("id" := J.string))        
+
+isTargetId : String -> Decoder Bool
+isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok True else Result.Err "nope!") 
+
+targetWithId : (Bool -> S.Message) -> String -> String -> Attribute
+targetWithId msg event id = on event (isTargetId id) msg
+
 spotLayers : S.Address (Maybe (Int, Int)) -> (Int, Int) -> (Int, Int) -> List Html
 spotLayers addr size clickPoint =
     let indicator = circleDiv clickPoint
-        cancel = onClick addr Nothing
+        cancel = targetWithId  (\_ -> S.message addr Nothing) "click" "modal"
         saw = text "Spotted: "
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1" ] []
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin" ] []
         at = text " at "
-        submit = input [ Attr.type' "submit", cancel ] [text "Save"]
+        submit = input [ Attr.type' "submit", cancel, stopTheProp "click"] [text "Save"]
         location = input [ Attr.type' "text", Attr.value (toString clickPoint), Attr.disabled True ] []
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
-        content = div [ (style [("text-align", "center")]) ] [theForm]
-    in [indicator, vcentred [cancel] size content]
+    in [indicator, vcentred "modal" [cancel] size theForm]
 
 -- Mailboxes
 clicks : S.Mailbox (Maybe (Int, Int))
@@ -120,6 +138,8 @@ applyO m o =
             Metacarpal.Drag pn ->
                 applyDrag m ((1, -1) `T.multiply` pn)
             DoubleClick pn ->
+                applyClick m (Just pn)
+            LongPress pn->
                 applyClick m (Just pn)
             otherwise ->
                 m
