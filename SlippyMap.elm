@@ -64,12 +64,6 @@ circleDiv clickPoint = let
 dead : S.Mailbox (String)
 dead = S.mailbox ""
 
--- can't stop the prop
-stopTheProp : String -> Attribute
-stopTheProp event = 
-    let opts = Options True False
-    in onWithOptions event opts (J.succeed "!") (Signal.message dead.address)
-
 targetId : Decoder String
 targetId = ("target" := ("id" := J.string))        
 
@@ -87,7 +81,7 @@ spotLayers addr size clickPoint =
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1" ] []
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin" ] []
         at = text " at "
-        submit = input [ Attr.type' "submit", cancel, stopTheProp "click"] [text "Save"]
+        submit = button [onWithOptions "click" (Options True True) (J.succeed "") (\t -> S.message addr Nothing)] [text "Save"]
         location = input [ Attr.type' "text", Attr.value (toString clickPoint), Attr.disabled True ] []
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
     in [indicator, vcentred "modal" [cancel] size theForm]
