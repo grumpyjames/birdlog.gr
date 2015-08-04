@@ -1,4 +1,4 @@
-module CommonLocator (common) where
+module CommonLocator (common, tiley2lat, tilex2long) where
 
 import Types exposing (Locator, Position, Tile, TileOffset, Zoom)
 

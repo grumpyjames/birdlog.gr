@@ -1,6 +1,7 @@
 module SlippyMap (main) where
 
 import ArcGIS exposing (arcGIS)
+import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
 import Movement exposing (keyState)
@@ -43,7 +44,7 @@ view window model =
     let mapLayer = render window model        
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] zoomChange.address tileSrc.address
-        spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers clicks.address window clicked) model.clicked)
+        spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers clicks.address model.zoom model.tileSource.tileSize model.centre window clicked) model.clicked)
         dblClick = index.attr metacarpal.address
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
@@ -73,16 +74,20 @@ isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok 
 targetWithId : (Bool -> S.Message) -> String -> String -> Attribute
 targetWithId msg event id = on event (isTargetId id) msg
 
-spotLayers : S.Address (Maybe (Int, Int)) -> (Int, Int) -> (Int, Int) -> List Html
-spotLayers addr size clickPoint =
+-- toGeopoint : Zoom -> Int -> (Int, Int) -> (Int, Int) -> GeoPoint -> GeoPoint
+
+spotLayers : S.Address (Maybe (Int, Int)) -> Zoom -> Int -> GeoPoint -> (Int, Int) -> (Int, Int) -> List Html
+spotLayers addr zoom tileSize geopt size clickPoint =
     let indicator = circleDiv clickPoint
-        cancel = targetWithId  (\_ -> S.message addr Nothing) "click" "modal"
+        clickLoc = toGeopoint zoom tileSize clickPoint size geopt 
+        nada = (\_ -> S.message addr Nothing)
+        cancel = targetWithId nada "click" "modal"
         saw = text "Spotted: "
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1" ] []
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin" ] []
         at = text " at "
-        submit = button [onWithOptions "click" (Options True True) (J.succeed "") (\t -> S.message addr Nothing)] [text "Save"]
-        location = input [ Attr.type' "text", Attr.value (toString clickPoint), Attr.disabled True ] []
+        submit = button [onWithOptions "click" (Options True True) (J.succeed "") nada] [text "Save"]
+        location = input [ Attr.type' "text", Attr.value (toString clickLoc), Attr.disabled True ] []
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
     in [indicator, vcentred "modal" [cancel] size theForm]
 
@@ -201,3 +206,14 @@ ourButton : (S.Address a) -> a -> String -> Html
 ourButton address msg txt = 
     let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
     in button (L.map (\e -> e address msg) events) [text txt]
+
+-- lon min: -180
+-- lat min : 85.0511
+
+toGeopoint : Zoom -> Int -> (Int, Int) -> (Int, Int) -> GeoPoint -> GeoPoint
+toGeopoint zoom tileSize clk win center = 
+    let cen = Debug.log "centre" center
+        middle = Debug.log "middle" <| T.map (\a -> a // 2) win
+        relative = Debug.log "tileOff" <| T.map (\p -> (toFloat p) / (toFloat tileSize)) (clk `T.subtract` middle)
+        offset = Debug.log "offset" <| GeoPoint (tiley2lat (snd relative) zoom) (tilex2long (fst relative) zoom)
+    in Debug.log "geopt" <| GeoPoint (-85.0511 + center.lat + (tiley2lat (snd relative) zoom)) (180.0 + center.lon + (tilex2long (fst relative) zoom))
