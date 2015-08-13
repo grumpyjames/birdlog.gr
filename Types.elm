@@ -2,7 +2,8 @@ module Types (GeoPoint,
               Hdpi,
               Locator,
               Model,
-              Position,              
+              Position,
+              Sighting,
               TileOffset,
               TileSource,
               TileUrl,
@@ -22,10 +23,17 @@ type alias TileSource = {
       locate: Locator,
       tileUrl: TileUrl
 }
+type alias Sighting =
+    {
+      count: Int
+    , name: String
+    , location: GeoPoint
+    }
 type alias Model = {
       centre : GeoPoint,
       zoom : Zoom,
       mouseState : (Bool, (Int, Int)),
       tileSource : TileSource,
-      clicked : Maybe (Int, Int)
+      clicked : Maybe (Int, Int),
+      sighting : Sighting
 }

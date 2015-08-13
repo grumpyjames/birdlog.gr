@@ -9,21 +9,24 @@ import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile exposing (render)
 import Tuple as T
-import Types exposing (GeoPoint, Model, TileSource, Zoom)
+import Types exposing (GeoPoint, Model, TileSource, Zoom, Sighting)
 
 import Color exposing (rgb)
 import Debug exposing (crash, log)
 import Graphics.Collage exposing (circle, dotted, collage, outlined, move)
 import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
 import Graphics.Input exposing (customButton, dropDown)
+import Http
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
 import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (Options, onClick, on, onWithOptions, onMouseDown, targetValue)
 import Json.Decode as J exposing (Decoder, object2, int, value, (:=), fail)
 import List as L
 import Maybe as M
-import Result
+import Result exposing (Result(..))
 import Signal as S
+import String
+import Task exposing (Task)
 import Text exposing (fromString)
 import Window
 
@@ -34,7 +37,7 @@ defaultTileSrc = mapBoxSource
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
-        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc Nothing
+        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc Nothing (Sighting 1 "pheasant" greenwich)
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 clickDecoder : Decoder (Maybe (Int, Int))
@@ -44,7 +47,7 @@ view window model =
     let mapLayer = render window model        
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] zoomChange.address tileSrc.address
-        spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers clicks.address model.zoom model.tileSource.tileSize model.centre window clicked) model.clicked)
+        spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers formChange.address clicks.address model.zoom model.tileSource.tileSize model.centre window clicked) model.clicked)
         dblClick = index.attr metacarpal.address
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
@@ -76,15 +79,24 @@ targetWithId msg event id = on event (isTargetId id) msg
 
 -- toGeopoint : Zoom -> Int -> (Int, Int) -> (Int, Int) -> GeoPoint -> GeoPoint
 
-spotLayers : S.Address (Maybe (Int, Int)) -> Zoom -> Int -> GeoPoint -> (Int, Int) -> (Int, Int) -> List Html
-spotLayers addr zoom tileSize geopt size clickPoint =
+unsafeToInt : String -> Int
+unsafeToInt s = 
+    let res = String.toInt s
+    in case res of
+         Ok i -> i
+         Err e -> crash "whoops"
+
+spotLayers : S.Address (FormChange) -> S.Address (Maybe (Int, Int)) -> Zoom -> Int -> GeoPoint -> (Int, Int) -> (Int, Int) -> List Html
+spotLayers fc addr zoom tileSize geopt size clickPoint =
     let indicator = circleDiv clickPoint
         clickLoc = toGeopoint zoom tileSize clickPoint size geopt 
         nada = (\_ -> S.message addr Nothing)
         cancel = targetWithId nada "click" "modal"
         saw = text "Spotted: "
-        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1" ] []
-        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin" ] []
+        countDecoder = J.map (Count << unsafeToInt) targetValue
+        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder (S.message fc)] []
+        speciesDecoder = J.map Species targetValue
+        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "change" speciesDecoder (S.message fc)] []
         at = text " at "
         submit = button [onWithOptions "click" (Options True True) (J.succeed "") nada] [text "Save"]
         location = input [ Attr.type' "text", Attr.value (toString clickLoc), Attr.disabled True ] []
@@ -96,10 +108,28 @@ clicks : S.Mailbox (Maybe (Int, Int))
 clicks = S.mailbox Nothing
 
 metacarpal : S.Mailbox InnerEvent
-metacarpal = S.mailbox index.zero 
+metacarpal = S.mailbox index.zero
+
+type FormChange = Species String
+                | Count Int
+
+formChange : S.Mailbox FormChange
+formChange = S.mailbox (Species "")
 
 zoomChange : S.Mailbox ZoomChange
 zoomChange = S.mailbox (In 0)
+
+httpSuccess : S.Mailbox String
+httpSuccess = S.mailbox ""
+
+onSuccess : String -> Task x ()
+onSuccess res = S.send httpSuccess.address res
+
+postSighting : Sighting -> Task Http.Error ()
+postSighting s = 
+    let body = Http.string <| toString s
+        request = Http.post (J.succeed "woot!") "/sightings" body 
+    in request `Task.andThen` onSuccess
 
 tileSrc : S.Mailbox (Maybe TileSource)
 tileSrc = S.mailbox Nothing
@@ -107,7 +137,7 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event)
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange
 
 events : Signal Events
 events = 
@@ -116,7 +146,8 @@ events =
         tileSource = S.map T tileSrc.signal
         klix = S.map C clicks.signal
         ot = S.map O <| index.sign metacarpal.signal
-    in S.mergeMany [tileSource, zooms, klix, keys, ot]
+        fc = S.map F formChange.signal
+    in S.mergeMany [fc, tileSource, zooms, klix, keys, ot]
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
@@ -125,9 +156,19 @@ applyEvent e m = case e of
  K ke -> applyKeys m ke 
  C c -> applyClick m c
  O o -> applyO m o
+ F fc -> applyFc m fc
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
+
+applyFc : Model -> FormChange -> Model
+applyFc m fc = 
+    let updateCount sg c = { sg | count <- c }
+        updateSpecies sg s = { sg | name <- s }
+    in 
+      case fc of
+        Count c -> { m | sighting <- (updateCount m.sighting c)}
+        Species s -> { m | sighting <- (updateSpecies m.sighting s)}
 
 applyO : Model -> Maybe Event -> Model
 applyO m o = 
@@ -212,8 +253,8 @@ ourButton address msg txt =
 
 toGeopoint : Zoom -> Int -> (Int, Int) -> (Int, Int) -> GeoPoint -> GeoPoint
 toGeopoint zoom tileSize clk win center = 
-    let cen = Debug.log "centre" center
-        middle = Debug.log "middle" <| T.map (\a -> a // 2) win
-        relative = Debug.log "tileOff" <| T.map (\p -> (toFloat p) / (toFloat tileSize)) (clk `T.subtract` middle)
-        offset = Debug.log "offset" <| GeoPoint (tiley2lat (snd relative) zoom) (tilex2long (fst relative) zoom)
-    in Debug.log "geopt" <| GeoPoint (-85.0511 + center.lat + (tiley2lat (snd relative) zoom)) (180.0 + center.lon + (tilex2long (fst relative) zoom))
+    let cen = center
+        middle = T.map (\a -> a // 2) win
+        relative = T.map (\p -> (toFloat p) / (toFloat tileSize)) (clk `T.subtract` middle)
+        offset = GeoPoint (tiley2lat (snd relative) zoom) (tilex2long (fst relative) zoom)
+    in GeoPoint (-85.0511 + center.lat + (tiley2lat (snd relative) zoom)) (180.0 + center.lon + (tilex2long (fst relative) zoom))
