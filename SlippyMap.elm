@@ -47,7 +47,8 @@ view window model =
     let mapLayer = render window model        
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] zoomChange.address tileSrc.address
-        spottedLayers = M.withDefault [] (M.map (\clicked -> spotLayers formChange.address clicks.address model.zoom model.tileSource.tileSize model.centre window clicked) model.clicked)
+        toSpotLayer clicked = spotLayers formChange.address clicks.address sightings.address window model clicked
+        spottedLayers = M.withDefault [] (M.map toSpotLayer model.clicked)
         dblClick = index.attr metacarpal.address
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
@@ -77,8 +78,6 @@ isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok 
 targetWithId : (Bool -> S.Message) -> String -> String -> Attribute
 targetWithId msg event id = on event (isTargetId id) msg
 
--- toGeopoint : Zoom -> Int -> (Int, Int) -> (Int, Int) -> GeoPoint -> GeoPoint
-
 unsafeToInt : String -> Int
 unsafeToInt s = 
     let res = String.toInt s
@@ -86,22 +85,22 @@ unsafeToInt s =
          Ok i -> i
          Err e -> crash "whoops"
 
-spotLayers : S.Address (FormChange) -> S.Address (Maybe (Int, Int)) -> Zoom -> Int -> GeoPoint -> (Int, Int) -> (Int, Int) -> List Html
-spotLayers fc addr zoom tileSize geopt size clickPoint =
+spotLayers : S.Address (FormChange) -> S.Address (Maybe (Int, Int)) -> S.Address (Maybe (Sighting)) -> (Int, Int) -> Model -> (Int, Int) -> List Html
+spotLayers fc addr sight win model clickPoint =
     let indicator = circleDiv clickPoint
-        clickLoc = toGeopoint zoom tileSize clickPoint size geopt 
+        clickLoc = toGeopoint win model clickPoint 
         nada = (\_ -> S.message addr Nothing)
         cancel = targetWithId nada "click" "modal"
         saw = text "Spotted: "
         countDecoder = J.map (Count << unsafeToInt) targetValue
-        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder (S.message fc)] []
+        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder (S.message fc), on "input" countDecoder (S.message fc)] []
         speciesDecoder = J.map Species targetValue
-        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "change" speciesDecoder (S.message fc)] []
+        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder (S.message fc)] []
         at = text " at "
-        submit = button [onWithOptions "click" (Options True True) (J.succeed "") nada] [text "Save"]
+        submit = button [onWithOptions "click" (Options True True) (J.succeed (Just model.sighting)) (S.message sight)] [text "Save"]
         location = input [ Attr.type' "text", Attr.value (toString clickLoc), Attr.disabled True ] []
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
-    in [indicator, vcentred "modal" [cancel] size theForm]
+    in [indicator, vcentred "modal" [cancel] win theForm]
 
 -- Mailboxes
 clicks : S.Mailbox (Maybe (Int, Int))
@@ -130,6 +129,17 @@ postSighting s =
     let body = Http.string <| toString s
         request = Http.post (J.succeed "woot!") "/sightings" body 
     in request `Task.andThen` onSuccess
+
+sightings : S.Mailbox (Maybe Sighting)
+sightings = S.mailbox Nothing
+
+port sightingSubmissions : Signal (Task Http.Error ())
+port sightingSubmissions = 
+    let sig m = 
+            case m of 
+              Nothing -> Task.succeed ()
+              Just s -> postSighting s
+    in S.map sig sightings.signal
 
 tileSrc : S.Mailbox (Maybe TileSource)
 tileSrc = S.mailbox Nothing
@@ -251,10 +261,12 @@ ourButton address msg txt =
 -- lon min: -180
 -- lat min : 85.0511
 
-toGeopoint : Zoom -> Int -> (Int, Int) -> (Int, Int) -> GeoPoint -> GeoPoint
-toGeopoint zoom tileSize clk win center = 
-    let cen = center
+toGeopoint : (Int, Int) -> Model -> (Int, Int) -> GeoPoint
+toGeopoint win model clk = 
+    let centre = model.centre
+        tileSize = model.tileSource.tileSize
+        zoom = model.zoom
         middle = T.map (\a -> a // 2) win
         relative = T.map (\p -> (toFloat p) / (toFloat tileSize)) (clk `T.subtract` middle)
         offset = GeoPoint (tiley2lat (snd relative) zoom) (tilex2long (fst relative) zoom)
-    in GeoPoint (-85.0511 + center.lat + (tiley2lat (snd relative) zoom)) (180.0 + center.lon + (tilex2long (fst relative) zoom))
+    in GeoPoint (-85.0511 + centre.lat + (tiley2lat (snd relative) zoom)) (180.0 + centre.lon + (tilex2long (fst relative) zoom))
