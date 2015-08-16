@@ -10,6 +10,7 @@ import Styles exposing (..)
 import Tile exposing (render)
 import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom, Sighting)
+import Ui
 
 import Color exposing (rgb)
 import Debug exposing (crash, log)
@@ -53,19 +54,6 @@ view window model =
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
-vcentred : String -> List Attribute -> (Int, Int) -> Html -> Html
-vcentred ident attrs size content = 
-    let cell = div (attrs ++ [style [("display", "table-cell"), ("vertical-align", "middle"), ("text-align", "center")], Attr.id ident]) [content]
-    in div ([style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
-
-circleDiv : (Int, Int) -> Html
-circleDiv clickPoint = let
-    radius = 15
-    diameter = 2 * radius
-    dims = (diameter, diameter)
-    realPosition = clickPoint `T.subtract` (radius, radius)
-    in div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thin")])] []
-
 dead : S.Mailbox (String)
 dead = S.mailbox ""
 
@@ -87,20 +75,21 @@ unsafeToInt s =
 
 spotLayers : S.Address (FormChange) -> S.Address (Maybe (Int, Int)) -> S.Address (Maybe (Sighting)) -> (Int, Int) -> Model -> (Int, Int) -> List Html
 spotLayers fc addr sight win model clickPoint =
-    let indicator = circleDiv clickPoint
+    let indicator = Ui.circle clickPoint
         clickLoc = toGeopoint win model clickPoint 
         nada = (\_ -> S.message addr Nothing)
-        cancel = targetWithId nada "click" "modal"
+        modalId = "modal"
+        cancel = targetWithId nada "click" modalId
         saw = text "Spotted: "
         countDecoder = J.map (Count << unsafeToInt) targetValue
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder (S.message fc), on "input" countDecoder (S.message fc)] []
         speciesDecoder = J.map Species targetValue
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder (S.message fc)] []
         at = text " at "
-        submit = button [onWithOptions "click" (Options True True) (J.succeed (Just model.sighting)) (S.message sight)] [text "Save"]
+        submit = Ui.submitButton (J.succeed (Just model.sighting)) (S.message sight) "Save"
         location = input [ Attr.type' "text", Attr.value (toString clickLoc), Attr.disabled True ] []
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
-    in [indicator, vcentred "modal" [cancel] win theForm]
+    in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
 
 -- Mailboxes
 clicks : S.Mailbox (Maybe (Int, Int))
