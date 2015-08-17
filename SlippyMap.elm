@@ -14,9 +14,6 @@ import Ui
 
 import Color exposing (rgb)
 import Debug exposing (crash, log)
-import Graphics.Collage exposing (circle, dotted, collage, outlined, move)
-import Graphics.Element exposing  (Element, centered, color, container, flow, layers, middle, right)
-import Graphics.Input exposing (customButton, dropDown)
 import Http
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
 import Html.Attributes as Attr exposing (style)
@@ -28,7 +25,6 @@ import Result exposing (Result(..))
 import Signal as S
 import String
 import Task exposing (Task)
-import Text exposing (fromString)
 import Window
 
 port hdpi : Bool
