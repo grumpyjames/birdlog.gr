@@ -34,6 +34,7 @@ type alias Sighting =
     , time : Time
     }
 type alias Model = {
+      hdpi : Bool,
       centre : GeoPoint,
       zoom : Zoom,
       mouseState : (Bool, (Int, Int)),

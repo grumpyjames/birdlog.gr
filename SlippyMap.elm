@@ -35,7 +35,7 @@ defaultTileSrc = mapBoxSource
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
-        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting 1 "pheasant" greenwich 0.0) False
+        initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting 1 "pheasant" greenwich 0.0) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 clickDecoder : Decoder (Maybe (Int, Int))
