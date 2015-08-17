@@ -38,7 +38,7 @@ defaultTileSrc = mapBoxSource
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
-        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc Nothing (Sighting 1 "pheasant" greenwich)
+        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc Nothing (Sighting 1 "pheasant" greenwich) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 clickDecoder : Decoder (Maybe (Int, Int))
@@ -86,9 +86,10 @@ spotLayers fc addr sight win model clickPoint =
         speciesDecoder = J.map Species targetValue
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder (S.message fc)] []
         at = text " at "
-        submit = Ui.submitButton (J.succeed (Just model.sighting)) (S.message sight) "Save"
-        location = input [ Attr.type' "text", Attr.value (toString clickLoc), Attr.disabled True ] []
-        theForm = form [style [("opacity", "0.8")]] [saw, count, bird, at, location, submit]
+        ins = model.sighting
+        sighting = { ins | location <- clickLoc }
+        submit = Ui.submitButton (J.succeed (Just sighting)) (S.message sight) "Save" model.progress
+        theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
 
 -- Mailboxes
@@ -107,17 +108,17 @@ formChange = S.mailbox (Species "")
 zoomChange : S.Mailbox ZoomChange
 zoomChange = S.mailbox (In 0)
 
-httpSuccess : S.Mailbox String
-httpSuccess = S.mailbox ""
+httpSuccess : S.Mailbox (Maybe String)
+httpSuccess = S.mailbox Nothing
 
-onSuccess : String -> Task x ()
+onSuccess : (Maybe String) -> Task x ()
 onSuccess res = S.send httpSuccess.address res
 
 postSighting : Sighting -> Task Http.Error ()
 postSighting s = 
     let body = Http.string <| toString s
-        request = Http.post (J.succeed "woot!") "/sightings" body 
-    in request `Task.andThen` onSuccess
+        request = Http.post (J.succeed (Just "woot!")) "/sightings" body 
+    in Task.mapError (Debug.log "ohshit") (request `Task.andThen` onSuccess)
 
 sightings : S.Mailbox (Maybe Sighting)
 sightings = S.mailbox Nothing
@@ -136,7 +137,7 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String)
 
 events : Signal Events
 events = 
@@ -146,7 +147,9 @@ events =
         klix = S.map C clicks.signal
         ot = S.map O <| index.sign metacarpal.signal
         fc = S.map F formChange.signal
-    in S.mergeMany [fc, tileSource, zooms, klix, keys, ot]
+        s = S.map S sightings.signal
+        hs = S.map H httpSuccess.signal
+    in S.mergeMany [fc, s, hs, tileSource, zooms, klix, keys, ot]
 
 -- Applying events to the model
 applyEvent : Events -> Model -> Model
@@ -156,9 +159,23 @@ applyEvent e m = case e of
  C c -> applyClick m c
  O o -> applyO m o
  F fc -> applyFc m fc
+ S s -> applyS m s
+ H h -> applyH m h
  T ti -> case ti of
            Just ts -> {m | tileSource <- ts }
            Nothing -> {m | tileSource <- defaultTileSrc }
+
+applyH : Model -> Maybe String -> Model
+applyH m s = 
+    case s of 
+      Just woo -> { m | progress <- False, clicked <- Nothing }
+      Nothing -> m
+
+applyS : Model -> Maybe Sighting -> Model
+applyS m s = 
+    case s of
+      Just sght -> { m | progress <- True }
+      Nothing -> m
 
 applyFc : Model -> FormChange -> Model
 applyFc m fc = 

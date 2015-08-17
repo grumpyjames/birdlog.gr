@@ -24,7 +24,7 @@ circle centre =
       div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thin")])] []
 
 -- disables autosubmit and associated nonsense
-submitButton : Decoder a -> (a -> Message) -> String -> Html
-submitButton d effect txt = 
+submitButton : Decoder a -> (a -> Message) -> String -> Bool -> Html
+submitButton d effect txt disable = 
     let disableThings = (Options True True)
-    in button [onWithOptions "click" disableThings d effect] [text txt]
+    in button [onWithOptions "click" disableThings d effect, Html.Attributes.disabled disable] [text txt]

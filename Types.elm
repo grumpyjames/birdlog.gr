@@ -35,5 +35,6 @@ type alias Model = {
       mouseState : (Bool, (Int, Int)),
       tileSource : TileSource,
       clicked : Maybe (Int, Int),
-      sighting : Sighting
+      sighting : Sighting,
+      progress : Bool
 }
