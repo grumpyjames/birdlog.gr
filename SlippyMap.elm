@@ -25,6 +25,7 @@ import Result exposing (Result(..))
 import Signal as S
 import String
 import Task exposing (Task)
+import Time exposing (Time)
 import Window
 
 port hdpi : Bool
@@ -34,7 +35,7 @@ defaultTileSrc = mapBoxSource
 main = 
     let greenwich = GeoPoint 51.48 0.0
         initialZoom = 15.0
-        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc Nothing (Sighting 1 "pheasant" greenwich) False
+        initialModel = Model greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting 1 "pheasant" greenwich 0.0) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 clickDecoder : Decoder (Maybe (Int, Int))
@@ -45,7 +46,7 @@ view window model =
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] zoomChange.address tileSrc.address
         toSpotLayer clicked = spotLayers formChange.address clicks.address sightings.address window model clicked
-        spottedLayers = M.withDefault [] (M.map toSpotLayer model.clicked)
+        spottedLayers = M.withDefault [] (M.map toSpotLayer (snd model.clicked))
         dblClick = index.attr metacarpal.address
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
@@ -83,7 +84,7 @@ spotLayers fc addr sight win model clickPoint =
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder (S.message fc)] []
         at = text " at "
         ins = model.sighting
-        sighting = { ins | location <- clickLoc }
+        sighting = { ins | location <- clickLoc, time <- fst model.clicked }
         submit = Ui.submitButton (J.succeed (Just sighting)) (S.message sight) "Save" model.progress
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
@@ -133,15 +134,15 @@ tileSrc = S.mailbox Nothing
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String)
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Time, (Maybe (Int, Int))) | O (Time, (Maybe Event)) | F FormChange | S (Maybe Sighting) | H (Maybe String)
 
 events : Signal Events
 events = 
     let zooms = S.map Z <| zoomChange.signal 
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         tileSource = S.map T tileSrc.signal
-        klix = S.map C clicks.signal
-        ot = S.map O <| index.sign metacarpal.signal
+        klix = S.map C <| Time.timestamp clicks.signal
+        ot = S.map O <| Time.timestamp (index.sign metacarpal.signal)
         fc = S.map F formChange.signal
         s = S.map S sightings.signal
         hs = S.map H httpSuccess.signal
@@ -164,7 +165,7 @@ applyEvent e m = case e of
 applyH : Model -> Maybe String -> Model
 applyH m s = 
     case s of 
-      Just woo -> { m | progress <- False, clicked <- Nothing }
+      Just woo -> { m | progress <- False, clicked <- (0.0, Nothing) }
       Nothing -> m
 
 applyS : Model -> Maybe Sighting -> Model
@@ -182,17 +183,17 @@ applyFc m fc =
         Count c -> { m | sighting <- (updateCount m.sighting c)}
         Species s -> { m | sighting <- (updateSpecies m.sighting s)}
 
-applyO : Model -> Maybe Event -> Model
-applyO m o = 
+applyO : Model -> (Time, Maybe Event) -> Model
+applyO m (t, o) = 
     case o of
       Just e -> 
           case e of
             Metacarpal.Drag pn ->
                 applyDrag m ((1, -1) `T.multiply` pn)
             DoubleClick pn ->
-                applyClick m (Just pn)
+                applyClick m (t, Just pn)
             LongPress pn->
-                applyClick m (Just pn)
+                applyClick m (t, Just pn)
             otherwise ->
                 m
       otherwise -> 
@@ -208,7 +209,7 @@ newZoom zc z =
 zoomIn address = ourButton address (In 1) "+"
 zoomOut address = ourButton address (Out 1) "-"
 
-applyClick : Model -> Maybe (Int, Int) -> Model
+applyClick : Model -> (Time, Maybe (Int, Int)) -> Model
 applyClick m c = 
     { m | clicked <- c }
 

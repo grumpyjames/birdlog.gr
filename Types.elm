@@ -10,6 +10,8 @@ module Types (GeoPoint,
               Tile,
               Zoom) where
 
+import Time exposing (Time)
+
 type alias Zoom = Float
 type alias GeoPoint = { lat: Float, lon: Float }
 type alias Tile = { coordinate : (Int, Int) }
@@ -28,13 +30,15 @@ type alias Sighting =
       count: Int
     , name: String
     , location: GeoPoint
+    -- millis
+    , time : Time
     }
 type alias Model = {
       centre : GeoPoint,
       zoom : Zoom,
       mouseState : (Bool, (Int, Int)),
       tileSource : TileSource,
-      clicked : Maybe (Int, Int),
+      clicked : (Time, Maybe (Int, Int)),
       sighting : Sighting,
       progress : Bool
 }
