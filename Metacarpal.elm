@@ -33,7 +33,7 @@ type InnerEvent
 
 type State
     = InDrag (Int, Int)
-    | InGesture Bool (List Touch)
+    | InGesture (List Touch) Int
     | Clean
 
 type alias Metacarpal i e =
@@ -65,32 +65,39 @@ parse ie s =
       (MouseOut posn, _)
           -> (Clean, M.Nothing)
       (TouchStart ts, _)
-          -> (InGesture False ts, M.Nothing)
-      (TouchMove newTs, InGesture _ oldTs)
-          -> (InGesture True newTs, parseTouchEvent newTs oldTs)
+          -> (InGesture ts 0, M.Nothing)
+      (TouchMove newTs, InGesture oldTs moved)
+          -> parseTouchEvent moved newTs oldTs
       (TouchMove newTs, _)
           -> (Clean, M.Nothing)
-      (TouchEnd, InGesture moved oldTouches)
-          -> (Clean, if moved then M.Nothing else M.map (\t -> LongPress t.position) (head oldTouches))
+      (TouchEnd, InGesture oldTouches moved)
+          -> (Clean, if moved > 25 then M.Nothing else M.map (\t -> LongPress t.position) (head oldTouches))
       (TouchEnd, _)
           -> (Clean, M.Nothing)
       otherwise 
           -> (Clean, M.Nothing)
 
-parseTouchEvent : List Touch -> List Touch -> Maybe Event
-parseTouchEvent newTouches oldTouches = 
-    if ((length oldTouches == 1) && (length newTouches == 1)) then parseEvent newTouches oldTouches else Nothing
+parseTouchEvent : Int -> List Touch -> List Touch -> (State, Maybe Event)
+parseTouchEvent moved newTouches oldTouches = 
+    if ((length oldTouches == 1) && (length newTouches == 1)) 
+    then parseEvent moved newTouches oldTouches
+    else (InGesture newTouches moved, Nothing)
 
-parseEvent : List Touch -> List Touch -> Maybe Event
-parseEvent oldTs newTs =
+parseEvent : Int -> List Touch -> List Touch -> (State, Maybe Event)
+parseEvent moved oldTs newTs =
     let matches = pairBy (\t -> t.id) oldTs newTs
-    in parseOne matches
+    in parseOne (InGesture oldTs) moved matches
 
-parseOne : List (Touch, Touch) -> Maybe Event
-parseOne ts =
+parseOne : (Int -> State) -> Int -> List (Touch, Touch) -> (State, Maybe Event)
+parseOne f moved ts =
     case ts of
-      (p1 :: []) -> Just <| parseDrag p1
-      otherwise -> Nothing
+      (p :: []) -> 
+          let dragEvent = ((snd p).position `T.subtract` (fst p).position)
+          in (f ((size dragEvent) + moved), Just <| Drag dragEvent)
+      otherwise -> (f moved, Nothing)
+
+size : (Int, Int) -> Int
+size (a, b) = (abs a) + (abs b)
 
 parseDrag : (Touch, Touch) -> Event
 parseDrag (t1, t2) = Drag (t2.position `T.subtract` t1.position)
