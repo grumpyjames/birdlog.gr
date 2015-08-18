@@ -44,8 +44,8 @@ clickDecoder = J.map (M.Just) <| object2 (,) ("pageX" := int) ("pageY" := int)
 view window model = 
     let mapLayer = render window model        
         styles = style (absolute ++ dimensions window ++ zeroMargin)
-        controls = buttons [style absolute] zoomChange.address tileSrc.address
-        toSpotLayer clicked = spotLayers formChange.address clicks.address sightings.address window model clicked
+        controls = buttons [style absolute] actions.address
+        toSpotLayer clicked = spotLayers actions.address window model clicked
         spottedLayers = M.withDefault [] (M.map toSpotLayer (snd model.clicked))
         dblClick = index.attr metacarpal.address
         clickCatcher = div (dblClick ++ [styles]) []
@@ -70,28 +70,29 @@ unsafeToInt s =
          Ok i -> i
          Err e -> crash "whoops"
 
-spotLayers : S.Address (FormChange) -> S.Address (Maybe (Int, Int)) -> S.Address (Maybe (Sighting)) -> (Int, Int) -> Model -> (Int, Int) -> List Html
-spotLayers fc addr sight win model clickPoint =
-    let indicator = Ui.circle clickPoint
+spotLayers : S.Address (Events) -> (Int, Int) -> Model -> (Int, Int) -> List Html
+spotLayers addr win model clickPoint =
+    let indicator = Ui.circle (20 * (if model.hdpi then 2 else 1)) clickPoint
         clickLoc = toGeopoint win model clickPoint 
-        nada = (\_ -> S.message addr Nothing)
+        nada = (\_ -> S.message addr (C Nothing))
         modalId = "modal"
         cancel = targetWithId nada "click" modalId
         saw = text "Spotted: "
         countDecoder = J.map (Count << unsafeToInt) targetValue
-        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder (S.message fc), on "input" countDecoder (S.message fc)] []
+        sendFormChange fc = S.message addr (F fc)
+        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
         speciesDecoder = J.map Species targetValue
-        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder (S.message fc)] []
+        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder sendFormChange] []
         at = text " at "
         ins = model.sighting
         sighting = { ins | location <- clickLoc, time <- fst model.clicked }
-        submit = Ui.submitButton (J.succeed (Just sighting)) (S.message sight) "Save" model.progress
+        submit = Ui.submitButton (J.succeed (Just sighting)) (\s -> S.message addr (S s)) "Save" model.progress
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
 
 -- Mailboxes
-clicks : S.Mailbox (Maybe (Int, Int))
-clicks = S.mailbox Nothing
+actions : S.Mailbox Events
+actions = S.mailbox N
 
 metacarpal : S.Mailbox InnerEvent
 metacarpal = S.mailbox index.zero
@@ -99,17 +100,8 @@ metacarpal = S.mailbox index.zero
 type FormChange = Species String
                 | Count Int
 
-formChange : S.Mailbox FormChange
-formChange = S.mailbox (Species "")
-
-zoomChange : S.Mailbox ZoomChange
-zoomChange = S.mailbox (In 0)
-
-httpSuccess : S.Mailbox (Maybe String)
-httpSuccess = S.mailbox Nothing
-
 onSuccess : (Maybe String) -> Task x ()
-onSuccess res = S.send httpSuccess.address res
+onSuccess res = S.send actions.address (H res)
 
 postSighting : Sighting -> Task Http.Error ()
 postSighting s = 
@@ -117,44 +109,40 @@ postSighting s =
         request = Http.post (J.succeed (Just "woot!")) "/sightings" body 
     in Task.mapError (Debug.log "ohshit") (request `Task.andThen` onSuccess)
 
-sightings : S.Mailbox (Maybe Sighting)
-sightings = S.mailbox Nothing
+pickSightings : Events -> Maybe (Maybe Sighting)
+pickSightings action = 
+    case action of
+      S s -> Just s
+      otherwise -> Nothing
+
+sig : Maybe Sighting -> Task Http.Error ()
+sig m = 
+    case m of 
+      Nothing -> Task.succeed ()
+      Just s -> postSighting s
 
 port sightingSubmissions : Signal (Task Http.Error ())
 port sightingSubmissions = 
-    let sig m = 
-            case m of 
-              Nothing -> Task.succeed ()
-              Just s -> postSighting s
-    in S.map sig sightings.signal
-
-tileSrc : S.Mailbox (Maybe TileSource)
-tileSrc = S.mailbox Nothing
+    S.map sig <| S.filterMap pickSightings Nothing actions.signal
 
 -- Events
 type ZoomChange = In Float | Out Float
 
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Time, (Maybe (Int, Int))) | O (Time, (Maybe Event)) | F FormChange | S (Maybe Sighting) | H (Maybe String)
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
 
-events : Signal Events
+events : Signal (Time, Events)
 events = 
-    let zooms = S.map Z <| zoomChange.signal 
-        keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
-        tileSource = S.map T tileSrc.signal
-        klix = S.map C <| Time.timestamp clicks.signal
-        ot = S.map O <| Time.timestamp (index.sign metacarpal.signal)
-        fc = S.map F formChange.signal
-        s = S.map S sightings.signal
-        hs = S.map H httpSuccess.signal
-    in S.mergeMany [fc, s, hs, tileSource, zooms, klix, keys, ot]
+    let keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
+        ot = S.map O <| index.sign metacarpal.signal
+    in Time.timestamp <| S.mergeMany [actions.signal, keys, ot]
 
 -- Applying events to the model
-applyEvent : Events -> Model -> Model
-applyEvent e m = case e of
+applyEvent : (Time, Events) -> Model -> Model
+applyEvent (t, e) m = case e of
  Z zo -> applyZoom m zo
  K ke -> applyKeys m ke 
- C c -> applyClick m c
- O o -> applyO m o
+ C c -> applyClick m t c
+ O o -> applyO m t o
  F fc -> applyFc m fc
  S s -> applyS m s
  H h -> applyH m h
@@ -183,17 +171,17 @@ applyFc m fc =
         Count c -> { m | sighting <- (updateCount m.sighting c)}
         Species s -> { m | sighting <- (updateSpecies m.sighting s)}
 
-applyO : Model -> (Time, Maybe Event) -> Model
-applyO m (t, o) = 
+applyO : Model -> Time -> Maybe Event -> Model
+applyO m t o = 
     case o of
       Just e -> 
           case e of
             Metacarpal.Drag pn ->
                 applyDrag m ((1, -1) `T.multiply` pn)
             DoubleClick pn ->
-                applyClick m (t, Just pn)
+                applyClick m t (Just pn)
             LongPress pn->
-                applyClick m (t, Just pn)
+                applyClick m t (Just pn)
             otherwise ->
                 m
       otherwise -> 
@@ -206,12 +194,12 @@ newZoom zc z =
         In a -> z + a
         Out a -> z - a
 
-zoomIn address = ourButton address (In 1) "+"
-zoomOut address = ourButton address (Out 1) "-"
+zoomIn address = ourButton address (Z (In 1)) "+"
+zoomOut address = ourButton address (Z (Out 1)) "-"
 
-applyClick : Model -> (Time, Maybe (Int, Int)) -> Model
-applyClick m c = 
-    { m | clicked <- c }
+applyClick : Model -> Time -> Maybe (Int, Int) -> Model
+applyClick m t c = 
+    { m | clicked <- (t, c) }
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
@@ -234,23 +222,23 @@ accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4Yj
 
 mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
 
-ons : S.Address (Maybe TileSource) -> Attribute
+ons : S.Address (Events) -> Attribute
 ons add = let 
     toMsg v = case v of
                 "OpenStreetMap" -> Just openStreetMap
                 "ArcGIS" -> Just arcGIS
                 "MapBox" -> Just mapBoxSource
                 otherwise -> Nothing
-    in on "change" targetValue (\v -> S.message add (toMsg v))
+    in on "change" targetValue (\v -> S.message add (T (toMsg v)))
 
-tileSrcDropDown : S.Address (Maybe TileSource) -> Html
+tileSrcDropDown : S.Address (Events) -> Html
 tileSrcDropDown address = 
     let onChange = ons address
     in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]
                 
 
-buttons attrs zoomAddress tileSrcAddress = 
-    div attrs [zoomIn zoomAddress, zoomOut zoomAddress, tileSrcDropDown tileSrcAddress]
+buttons attrs actionAddress = 
+    div attrs [zoomIn actionAddress, zoomOut actionAddress, tileSrcDropDown actionAddress]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235

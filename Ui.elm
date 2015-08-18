@@ -14,14 +14,13 @@ modal attrs size content =
     let cell = div (attrs ++ [style [("display", "table-cell"), ("vertical-align", "middle"), ("text-align", "center")]]) [content]
     in div ([style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
 
-circle : (Int, Int) -> Html
-circle centre = 
-    let radius = 15
-        diameter = 2 * radius
+circle : Int -> (Int, Int) -> Html
+circle radius centre = 
+    let diameter = 2 * radius
         dims = (diameter, diameter)
         realPosition = centre `T.subtract` (radius, radius)
     in 
-      div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thin")])] []
+      div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thick")])] []
 
 -- disables autosubmit and associated nonsense
 submitButton : Decoder a -> (a -> Message) -> String -> Bool -> Html
