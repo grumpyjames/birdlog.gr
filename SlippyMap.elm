@@ -51,9 +51,6 @@ view window model =
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
-dead : S.Mailbox (String)
-dead = S.mailbox ""
-
 targetId : Decoder String
 targetId = ("target" := ("id" := J.string))        
 
