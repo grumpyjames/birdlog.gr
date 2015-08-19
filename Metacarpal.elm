@@ -36,18 +36,20 @@ type State
     | InGesture (List Touch) Int
     | Clean
 
-type alias Metacarpal i e =
+type alias Metacarpal =
     {
-      sign : Signal i -> Signal (Maybe e)
-    , attr : (S.Address i) -> List Attribute
-    , zero : i
+      signal : Signal (Maybe Event)
+    , attr : List Attribute
     }
 
-index : Metacarpal InnerEvent Event
-index = Metacarpal sgn interactions (MouseOut (0, 0))
+metacarpal : S.Mailbox InnerEvent
+metacarpal = S.mailbox (MouseOut (0, 0))
 
-sgn : Signal InnerEvent -> Signal (Maybe Event)
-sgn sie = S.map snd <| S.foldp parse (Clean, M.Nothing) sie
+index : Metacarpal
+index = Metacarpal sgn interactions
+
+sgn : Signal (Maybe Event)
+sgn = S.map snd <| S.foldp parse (Clean, M.Nothing) metacarpal.signal
 
 parse : InnerEvent -> (State, Maybe Event) -> (State, Maybe Event)
 parse ie s = 
@@ -115,19 +117,21 @@ find feature needle = head << filter (\x -> (feature x) == needle)
 
 prev = Options True True
 
-interactions : S.Address (InnerEvent) -> List Attribute
-interactions addr = 
-    [
-      on "mousedown" positionDecoder (\posn -> S.message addr (MouseDown posn))
-    , on "mouseup" positionDecoder (\posn -> S.message addr (MouseOut posn))
-    , on "mouseout" positionDecoder (\posn -> S.message addr (MouseOut posn))
-    , on "mousemove" positionDecoder (\posn -> S.message addr (MouseMove posn))
-    , onWithOptions "dblclick" prev positionDecoder (\posn -> S.message addr (DblClick posn))
-    , onWithOptions "touchstart" prev touchDecoder (\ts -> S.message addr (TouchStart ts))
-    , onWithOptions "touchmove" prev touchDecoder (\ts -> S.message addr (TouchMove ts))
-    , onWithOptions "touchend" prev (succeed 1) (\t -> S.message addr (TouchEnd))
-    , onWithOptions "touchleave" prev (succeed 1) (\t -> S.message addr (TouchEnd))
-    ]
+interactions : List Attribute
+interactions =
+    let addr = metacarpal.address
+    in
+      [
+        on "mousedown" positionDecoder (\posn -> S.message addr (MouseDown posn))
+      , on "mouseup" positionDecoder (\posn -> S.message addr (MouseOut posn))
+      , on "mouseout" positionDecoder (\posn -> S.message addr (MouseOut posn))
+      , on "mousemove" positionDecoder (\posn -> S.message addr (MouseMove posn))
+      , onWithOptions "dblclick" prev positionDecoder (\posn -> S.message addr (DblClick posn))
+      , onWithOptions "touchstart" prev touchDecoder (\ts -> S.message addr (TouchStart ts))
+      , onWithOptions "touchmove" prev touchDecoder (\ts -> S.message addr (TouchMove ts))
+      , onWithOptions "touchend" prev (succeed 1) (\t -> S.message addr (TouchEnd))
+      , onWithOptions "touchleave" prev (succeed 1) (\t -> S.message addr (TouchEnd))
+      ]
 
 -- decoders
 positionDecoder : Decoder (Int, Int)

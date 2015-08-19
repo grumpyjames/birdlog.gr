@@ -47,7 +47,7 @@ view window model =
         controls = buttons [style absolute] actions.address
         toSpotLayer clicked = spotLayers actions.address window model clicked
         spottedLayers = M.withDefault [] (M.map toSpotLayer (snd model.clicked))
-        dblClick = index.attr metacarpal.address
+        dblClick = index.attr
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
 
@@ -91,9 +91,6 @@ spotLayers addr win model clickPoint =
 actions : S.Mailbox Events
 actions = S.mailbox N
 
-metacarpal : S.Mailbox InnerEvent
-metacarpal = S.mailbox index.zero
-
 type FormChange = Species String
                 | Count Int
 
@@ -130,7 +127,7 @@ type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int
 events : Signal (Time, Events)
 events = 
     let keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
-        ot = S.map O <| index.sign metacarpal.signal
+        ot = S.map O <| index.signal
     in Time.timestamp <| S.mergeMany [actions.signal, keys, ot]
 
 -- Applying events to the model
