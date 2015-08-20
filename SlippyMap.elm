@@ -4,7 +4,6 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Movement exposing (keyState)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile exposing (render)
@@ -19,6 +18,7 @@ import Html exposing (Attribute, Html, button, div, input, form, text, select, o
 import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (Options, onClick, on, onWithOptions, onMouseDown, targetValue)
 import Json.Decode as J exposing (Decoder, object2, int, value, (:=), fail)
+import Keyboard
 import List as L
 import Maybe as M
 import Result exposing (Result(..))
@@ -123,6 +123,11 @@ port sightingSubmissions =
 type ZoomChange = In Float | Out Float
 
 type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
+
+keyState : Signal (Int, Int)
+keyState =
+    let toTuple a = (a.x, a.y)
+    in S.map toTuple Keyboard.arrows
 
 events : Signal (Time, Events)
 events = 
