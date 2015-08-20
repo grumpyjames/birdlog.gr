@@ -204,7 +204,9 @@ applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
 
 applyKeys : Model -> (Int, Int) -> Model
-applyKeys = applyDrag
+applyKeys m k = 
+    let clicked = snd (m.clicked)
+    in M.withDefault (applyDrag m k) <| M.map (\t -> m) clicked
 
 applyDrag : Model -> (Int, Int) -> Model
 applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
