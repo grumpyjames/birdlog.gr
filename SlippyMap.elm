@@ -31,11 +31,11 @@ import Window
 port hdpi : Bool
 
 defaultTileSrc = mapBoxSource
+greenwich = GeoPoint 51.48 0.0        
 
 main = 
-    let greenwich = GeoPoint 51.48 0.0
-        initialZoom = 15.0
-        initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting 1 "pheasant" greenwich 0.0) False
+    let initialZoom = 15.0
+        initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 clickDecoder : Decoder (Maybe (Int, Int))
@@ -60,12 +60,19 @@ isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok 
 targetWithId : (Bool -> S.Message) -> String -> String -> Attribute
 targetWithId msg event id = on event (isTargetId id) msg
 
-unsafeToInt : String -> Int
-unsafeToInt s = 
-    let res = String.toInt s
-    in case res of
-         Ok i -> i
-         Err e -> crash "whoops"
+fold : (e -> c) -> (o -> c) -> Result e o -> c
+fold f g r = 
+    case r of
+      Ok o -> g o
+      Err e -> f e
+
+disable : Model -> Bool
+disable m = 
+    let 
+        alreadyInProgress = m.progress
+        countIsNumber = fold (\_ -> False) (\_ -> True) m.sighting.count
+        speciesEmpty = String.isEmpty m.sighting.name
+    in alreadyInProgress || (not countIsNumber) || speciesEmpty 
 
 spotLayers : S.Address (Events) -> (Int, Int) -> Model -> (Int, Int) -> List Html
 spotLayers addr win model clickPoint =
@@ -75,7 +82,7 @@ spotLayers addr win model clickPoint =
         modalId = "modal"
         cancel = targetWithId nada "click" modalId
         saw = text "Spotted: "
-        countDecoder = J.map (Count << unsafeToInt) targetValue
+        countDecoder = J.map (Count << String.toInt) targetValue
         sendFormChange fc = S.message addr (F fc)
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
         speciesDecoder = J.map Species targetValue
@@ -83,7 +90,7 @@ spotLayers addr win model clickPoint =
         at = text " at "
         ins = model.sighting
         sighting = { ins | location <- clickLoc, time <- fst model.clicked }
-        submit = Ui.submitButton (J.succeed (Just sighting)) (\s -> S.message addr (S s)) "Save" model.progress
+        submit = Ui.submitButton (J.succeed (Just sighting)) (\s -> S.message addr (S s)) "Save" (disable model)
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
 
@@ -92,7 +99,7 @@ actions : S.Mailbox Events
 actions = S.mailbox N
 
 type FormChange = Species String
-                | Count Int
+                | Count (Result String Int)
 
 onSuccess : (Maybe String) -> Task x ()
 onSuccess res = S.send actions.address (H res)
@@ -152,7 +159,11 @@ applyEvent (t, e) m = case e of
 applyH : Model -> Maybe String -> Model
 applyH m s = 
     case s of 
-      Just woo -> { m | progress <- False, clicked <- (0.0, Nothing) }
+      Just woo -> { m 
+                  | progress <- False 
+                  , clicked <- (0.0, Nothing)
+                  , sighting <- Sighting (Err "unset") "" greenwich 0.0
+                  }
       Nothing -> m
 
 applyS : Model -> Maybe Sighting -> Model

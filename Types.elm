@@ -27,7 +27,7 @@ type alias TileSource = {
 }
 type alias Sighting =
     {
-      count: Int
+      count: Result String Int
     , name: String
     , location: GeoPoint
     -- millis
