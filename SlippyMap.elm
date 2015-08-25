@@ -48,7 +48,7 @@ greenwich = GeoPoint 51.48 0.0
 actions : S.Mailbox Events
 actions = S.mailbox N
 
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
+type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
 
 type FormChange = Species String
                 | Count (Result String Int)
@@ -76,9 +76,7 @@ applyEvent (t, e) m = case e of
  F fc -> applyFc m fc
  S s -> applyS m s
  H h -> applyH m h
- T ti -> case ti of
-           Just ts -> {m | tileSource <- ts }
-           Nothing -> {m | tileSource <- defaultTileSrc }
+ T ti -> {m | tileSource <- ti }
 
 applyH : Model -> Maybe String -> Model
 applyH m s = 
@@ -234,10 +232,9 @@ spotLayers addr win model clickPoint =
 ons : S.Address (Events) -> Attribute
 ons add = let 
     toMsg v = case v of
-                "OpenStreetMap" -> Just openStreetMap
-                "ArcGIS" -> Just arcGIS
-                "MapBox" -> Just mapBoxSource
-                otherwise -> Nothing
+                "OpenStreetMap" -> openStreetMap
+                "ArcGIS" -> arcGIS
+                "MapBox" -> mapBoxSource
     in on "change" targetValue (\v -> S.message add (T (toMsg v)))
 
 tileSrcDropDown : S.Address (Events) -> Html
