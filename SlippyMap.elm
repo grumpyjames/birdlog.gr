@@ -38,9 +38,6 @@ main =
         initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
-clickDecoder : Decoder (Maybe (Int, Int))
-clickDecoder = J.map (M.Just) <| object2 (,) ("pageX" := int) ("pageY" := int)
-
 view window model = 
     let mapLayer = render window model        
         styles = style (absolute ++ dimensions window ++ zeroMargin)
