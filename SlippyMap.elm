@@ -30,13 +30,153 @@ import Window
 
 port hdpi : Bool
 
-defaultTileSrc = mapBoxSource
-greenwich = GeoPoint 51.48 0.0        
-
+-- main
 main = 
     let initialZoom = 15.0
         initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
+
+
+
+-- a few useful constants
+accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
+mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
+defaultTileSrc = mapBoxSource
+greenwich = GeoPoint 51.48 0.0        
+
+-- Signal graph and model update
+actions : S.Mailbox Events
+actions = S.mailbox N
+
+type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
+
+type FormChange = Species String
+                | Count (Result String Int)
+
+type ZoomChange = In Float | Out Float
+
+keyState : Signal (Int, Int)
+keyState =
+    let toTuple a = (a.x, a.y)
+    in S.map toTuple Keyboard.arrows
+
+events : Signal (Time, Events)
+events = 
+    let keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
+        ot = S.map O <| index.signal
+    in Time.timestamp <| S.mergeMany [actions.signal, keys, ot]
+
+-- Applying events to the model
+applyEvent : (Time, Events) -> Model -> Model
+applyEvent (t, e) m = case e of
+ Z zo -> applyZoom m zo
+ K ke -> applyKeys m ke 
+ C c -> applyClick m t c
+ O o -> applyO m t o
+ F fc -> applyFc m fc
+ S s -> applyS m s
+ H h -> applyH m h
+ T ti -> case ti of
+           Just ts -> {m | tileSource <- ts }
+           Nothing -> {m | tileSource <- defaultTileSrc }
+
+applyH : Model -> Maybe String -> Model
+applyH m s = 
+    case s of 
+      Just woo -> { m 
+                  | progress <- False 
+                  , clicked <- (0.0, Nothing)
+                  , sighting <- Sighting (Err "unset") "" greenwich 0.0
+                  }
+      Nothing -> m
+
+applyS : Model -> Maybe Sighting -> Model
+applyS m s = 
+    case s of
+      Just sght -> { m | progress <- True }
+      Nothing -> m
+
+applyFc : Model -> FormChange -> Model
+applyFc m fc = 
+    let updateCount sg c = { sg | count <- c }
+        updateSpecies sg s = { sg | name <- s }
+    in 
+      case fc of
+        Count c -> { m | sighting <- (updateCount m.sighting c)}
+        Species s -> { m | sighting <- (updateSpecies m.sighting s)}
+
+
+applyClick : Model -> Time -> Maybe (Int, Int) -> Model
+applyClick m t c = 
+    { m | clicked <- (t, c) }
+
+applyZoom : Model -> ZoomChange -> Model
+applyZoom m zc = 
+    let 
+        newZoom zc z =
+            case zc of
+              In a -> z + a
+              Out a -> z - a
+    in { m | zoom <- newZoom zc m.zoom }
+
+applyKeys : Model -> (Int, Int) -> Model
+applyKeys m k = 
+    let clicked = snd (m.clicked)
+    in M.withDefault (applyDrag m k) <| M.map (\t -> m) clicked
+
+applyDrag : Model -> (Int, Int) -> Model
+applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
+
+move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
+move z gpt pixOff = 
+    let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
+    in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
+
+
+applyO : Model -> Time -> Maybe Event -> Model
+applyO m t o = 
+    case o of
+      Just e -> 
+          case e of
+            Metacarpal.Drag pn ->
+                applyDrag m ((1, -1) `T.multiply` pn)
+            DoubleClick pn ->
+                applyClick m t (Just pn)
+            LongPress pn->
+                applyClick m t (Just pn)
+            otherwise ->
+                m
+      otherwise -> 
+          m
+
+-- Request dispatch
+
+onSuccess : (Maybe String) -> Task x ()
+onSuccess res = S.send actions.address (H res)
+
+postSighting : Sighting -> Task Http.Error ()
+postSighting s = 
+    let body = Http.string <| toString s
+        request = Http.post (J.succeed (Just "woot!")) "/sightings" body 
+    in Task.mapError (Debug.log "ohshit") (request `Task.andThen` onSuccess)
+
+pickSightings : Events -> Maybe (Maybe Sighting)
+pickSightings action = 
+    case action of
+      S s -> Just s
+      otherwise -> Nothing
+
+sig : Maybe Sighting -> Task Http.Error ()
+sig m = 
+    case m of 
+      Nothing -> Task.succeed ()
+      Just s -> postSighting s
+
+port sightingSubmissions : Signal (Task Http.Error ())
+port sightingSubmissions = 
+    S.map sig <| S.filterMap pickSightings Nothing actions.signal
+
+-- view concerns
 
 view window model = 
     let mapLayer = Tile.render window model        
@@ -91,146 +231,6 @@ spotLayers addr win model clickPoint =
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
 
--- Mailboxes
-actions : S.Mailbox Events
-actions = S.mailbox N
-
-type FormChange = Species String
-                | Count (Result String Int)
-
-onSuccess : (Maybe String) -> Task x ()
-onSuccess res = S.send actions.address (H res)
-
-postSighting : Sighting -> Task Http.Error ()
-postSighting s = 
-    let body = Http.string <| toString s
-        request = Http.post (J.succeed (Just "woot!")) "/sightings" body 
-    in Task.mapError (Debug.log "ohshit") (request `Task.andThen` onSuccess)
-
-pickSightings : Events -> Maybe (Maybe Sighting)
-pickSightings action = 
-    case action of
-      S s -> Just s
-      otherwise -> Nothing
-
-sig : Maybe Sighting -> Task Http.Error ()
-sig m = 
-    case m of 
-      Nothing -> Task.succeed ()
-      Just s -> postSighting s
-
-port sightingSubmissions : Signal (Task Http.Error ())
-port sightingSubmissions = 
-    S.map sig <| S.filterMap pickSightings Nothing actions.signal
-
--- Events
-type ZoomChange = In Float | Out Float
-
-type Events = Z ZoomChange | K (Int, Int) | T (Maybe TileSource) | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
-
-keyState : Signal (Int, Int)
-keyState =
-    let toTuple a = (a.x, a.y)
-    in S.map toTuple Keyboard.arrows
-
-events : Signal (Time, Events)
-events = 
-    let keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
-        ot = S.map O <| index.signal
-    in Time.timestamp <| S.mergeMany [actions.signal, keys, ot]
-
--- Applying events to the model
-applyEvent : (Time, Events) -> Model -> Model
-applyEvent (t, e) m = case e of
- Z zo -> applyZoom m zo
- K ke -> applyKeys m ke 
- C c -> applyClick m t c
- O o -> applyO m t o
- F fc -> applyFc m fc
- S s -> applyS m s
- H h -> applyH m h
- T ti -> case ti of
-           Just ts -> {m | tileSource <- ts }
-           Nothing -> {m | tileSource <- defaultTileSrc }
-
-applyH : Model -> Maybe String -> Model
-applyH m s = 
-    case s of 
-      Just woo -> { m 
-                  | progress <- False 
-                  , clicked <- (0.0, Nothing)
-                  , sighting <- Sighting (Err "unset") "" greenwich 0.0
-                  }
-      Nothing -> m
-
-applyS : Model -> Maybe Sighting -> Model
-applyS m s = 
-    case s of
-      Just sght -> { m | progress <- True }
-      Nothing -> m
-
-applyFc : Model -> FormChange -> Model
-applyFc m fc = 
-    let updateCount sg c = { sg | count <- c }
-        updateSpecies sg s = { sg | name <- s }
-    in 
-      case fc of
-        Count c -> { m | sighting <- (updateCount m.sighting c)}
-        Species s -> { m | sighting <- (updateSpecies m.sighting s)}
-
-applyO : Model -> Time -> Maybe Event -> Model
-applyO m t o = 
-    case o of
-      Just e -> 
-          case e of
-            Metacarpal.Drag pn ->
-                applyDrag m ((1, -1) `T.multiply` pn)
-            DoubleClick pn ->
-                applyClick m t (Just pn)
-            LongPress pn->
-                applyClick m t (Just pn)
-            otherwise ->
-                m
-      otherwise -> 
-          m
-
--- Zoom controls and event
-newZoom : ZoomChange -> Zoom -> Zoom
-newZoom zc z = 
-    case zc of
-        In a -> z + a
-        Out a -> z - a
-
-zoomIn address = ourButton address (Z (In 1)) "+"
-zoomOut address = ourButton address (Z (Out 1)) "-"
-
-applyClick : Model -> Time -> Maybe (Int, Int) -> Model
-applyClick m t c = 
-    { m | clicked <- (t, c) }
-
-applyZoom : Model -> ZoomChange -> Model
-applyZoom m zc = { m | zoom <- newZoom zc m.zoom }
-
-applyKeys : Model -> (Int, Int) -> Model
-applyKeys m k = 
-    let clicked = snd (m.clicked)
-    in M.withDefault (applyDrag m k) <| M.map (\t -> m) clicked
-
-applyDrag : Model -> (Int, Int) -> Model
-applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
-
-isInt : Zoom -> Bool
-isInt z = (toFloat (round z)) == z
-
-move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
-move z gpt pixOff = 
-    let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
-    in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
-
-accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
-
-mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
-
 ons : S.Address (Events) -> Attribute
 ons add = let 
     toMsg v = case v of
@@ -243,8 +243,10 @@ ons add = let
 tileSrcDropDown : S.Address (Events) -> Html
 tileSrcDropDown address = 
     let onChange = ons address
-    in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]
-                
+    in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
+
+zoomIn address = ourButton address (Z (In 1)) "+"
+zoomOut address = ourButton address (Z (Out 1)) "-"
 
 buttons attrs actionAddress = 
     div attrs [zoomIn actionAddress, zoomOut actionAddress, tileSrcDropDown actionAddress]
