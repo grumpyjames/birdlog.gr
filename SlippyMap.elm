@@ -79,11 +79,7 @@ applyEvent (t, e) m = case e of
  T ti -> {m | tileSource <- ti }
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
-applyMaybe f = 
-    \m maybs -> 
-        case maybs of
-          Just j -> f m j
-          Nothing -> m
+applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
 
 applyH : Model -> String -> Model
 applyH m woo = { m 
