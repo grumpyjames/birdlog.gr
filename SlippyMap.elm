@@ -6,7 +6,7 @@ import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
-import Tile exposing (render)
+import Tile
 import Tuple as T
 import Types exposing (GeoPoint, Model, TileSource, Zoom, Sighting)
 import Ui
@@ -39,7 +39,7 @@ main =
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 view window model = 
-    let mapLayer = render window model        
+    let mapLayer = Tile.render window model        
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] actions.address
         toSpotLayer clicked = spotLayers actions.address window model clicked
