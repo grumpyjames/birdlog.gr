@@ -72,27 +72,28 @@ applyEvent (t, e) m = case e of
  Z zo -> applyZoom m zo
  K ke -> applyKeys m ke 
  C c -> applyClick m t c
- O o -> applyO m t o
+ O o -> (applyMaybe (applyO t)) m o
  F fc -> applyFc m fc
- S s -> applyS m s
- H h -> applyH m h
+ S s -> (applyMaybe applyS) m s
+ H h -> (applyMaybe applyH) m h
  T ti -> {m | tileSource <- ti }
 
-applyH : Model -> Maybe String -> Model
-applyH m s = 
-    case s of 
-      Just woo -> { m 
-                  | progress <- False 
-                  , clicked <- (0.0, Nothing)
-                  , sighting <- Sighting (Err "unset") "" greenwich 0.0
-                  }
-      Nothing -> m
+applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
+applyMaybe f = 
+    \m maybs -> 
+        case maybs of
+          Just j -> f m j
+          Nothing -> m
 
-applyS : Model -> Maybe Sighting -> Model
-applyS m s = 
-    case s of
-      Just sght -> { m | progress <- True }
-      Nothing -> m
+applyH : Model -> String -> Model
+applyH m woo = { m 
+               | progress <- False 
+               , clicked <- (0.0, Nothing)
+               , sighting <- Sighting (Err "unset") "" greenwich 0.0
+               }
+
+applyS : Model -> Sighting -> Model
+applyS m sght = { m | progress <- True }
 
 applyFc : Model -> FormChange -> Model
 applyFc m fc = 
@@ -131,21 +132,15 @@ move z gpt pixOff =
     in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 
-applyO : Model -> Time -> Maybe Event -> Model
-applyO m t o = 
-    case o of
-      Just e -> 
-          case e of
-            Metacarpal.Drag pn ->
-                applyDrag m ((1, -1) `T.multiply` pn)
-            DoubleClick pn ->
-                applyClick m t (Just pn)
-            LongPress pn->
-                applyClick m t (Just pn)
-            otherwise ->
-                m
-      otherwise -> 
-          m
+applyO : Time -> Model -> Event -> Model
+applyO t m e = 
+    case e of
+      Metacarpal.Drag pn ->
+          applyDrag m ((1, -1) `T.multiply` pn)
+      DoubleClick pn ->
+          applyClick m t (Just pn)
+      LongPress pn->
+          applyClick m t (Just pn)
 
 -- Request dispatch
 
