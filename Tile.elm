@@ -1,5 +1,6 @@
 module Tile (render) where
 
+import Styles exposing (px)
 import Tuple as T
 import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 
@@ -23,9 +24,6 @@ render window m =
         attrs = 
             [style [("overflow", "hidden"), ("position", "absolute"), ("width", px (fst window)), ("height", px (snd window)), ("padding", px 0), ("margin", px 0)]]
     in div attrs [applyPosition mapEl offset]
-
-px : Int -> String
-px n = (toString n) ++ "px"
 
 calcTileSize : Model -> Int
 calcTileSize m =
