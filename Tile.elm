@@ -1,6 +1,6 @@
 module Tile (render) where
 
-import Styles exposing (px, absolute, dimensions, zeroMargin)
+import Styles exposing (px, absolute, dimensions, position, zeroMargin)
 import Tuple as T
 import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 
@@ -31,8 +31,9 @@ calcTileSize m =
     in m.tileSource.tileSize + digizoom
 
 applyPosition : Element -> Position -> Html
-applyPosition el distance = 
-    div [style [("left", px (fst distance.pixels)), ("top", px (snd distance.pixels)), ("position", "absolute")]] [fromElement el]
+applyPosition el distance =
+    let attr = style ((position (distance.pixels)) ++ absolute) 
+    in div [attr] [fromElement el]
 
 -- use the model to render a single tile
 renderOneTile : Zoom -> Int -> TileUrl -> Tile -> Element
