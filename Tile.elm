@@ -5,10 +5,11 @@ import Tuple as T
 import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 
 import Array exposing (Array, fromList, toList)
+-- FIXME: should use Html instead!
 import Graphics.Element exposing (Element, down, flow, image, right)
 import Html exposing (Html, div, fromElement)
 import Html.Attributes exposing (style)
-import List exposing (concatMap, map)
+import List exposing (map)
 
 render : (Int, Int) -> Model -> Html
 render window m =
