@@ -1,6 +1,6 @@
 module Tile (render) where
 
-import Styles exposing (px)
+import Styles exposing (px, absolute, dimensions, zeroMargin)
 import Tuple as T
 import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 
@@ -21,9 +21,8 @@ render window m =
         offset = originOffset window tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         mapEl = flowTable (renderOneTile m.zoom tileSize m.tileSource.tileUrl) tileRows
-        attrs = 
-            [style [("overflow", "hidden"), ("position", "absolute"), ("width", px (fst window)), ("height", px (snd window)), ("padding", px 0), ("margin", px 0)]]
-    in div attrs [applyPosition mapEl offset]
+        attr = style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)
+    in div [attr] [applyPosition mapEl offset]
 
 calcTileSize : Model -> Int
 calcTileSize m =
