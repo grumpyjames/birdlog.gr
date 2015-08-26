@@ -5,8 +5,7 @@ import Tuple as T
 import Types exposing (Model, Position, Tile, TileUrl, Zoom)
 
 import Array exposing (Array, fromList, toList)
-import Graphics.Collage exposing (Form, collage, move, toForm)
-import Graphics.Element exposing (Element, down, flow, image, layers, right, spacer)
+import Graphics.Element exposing (Element, down, flow, image, right)
 import Html exposing (Html, div, fromElement)
 import Html.Attributes exposing (style)
 import List exposing (concatMap, map)
