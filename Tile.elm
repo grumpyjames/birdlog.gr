@@ -24,11 +24,13 @@ render window m =
         attr = style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)
     in div [attr] [applyPosition mapEl offset]
 
+-- in the case of a fractional zoom, expand the tile size appropriately
 calcTileSize : Model -> Int
 calcTileSize m =
-    let frac f = f - (toFloat (floor f))
-        digizoom = floor ((frac m.zoom) * 256)
-    in m.tileSource.tileSize + digizoom
+    let tileSize = m.tileSource.tileSize
+        frac f = f - (toFloat (floor f))
+        digizoom = floor ((frac m.zoom) * (toFloat tileSize))
+    in tileSize + digizoom
 
 applyPosition : Element -> Position -> Html
 applyPosition el distance =
