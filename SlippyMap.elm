@@ -8,7 +8,7 @@ import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
 import Tuple as T
-import Types exposing (GeoPoint, Model, TileSource, Zoom, Sighting)
+import Types exposing (GeoPoint, Model, TileSource, Zoom, Recording(..), Sighting)
 import Ui
 
 import Color exposing (rgb)
@@ -33,7 +33,7 @@ port hdpi : Bool
 -- main
 main = 
     let initialZoom = 15.0
-        initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) False
+        initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) [] False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -46,7 +46,7 @@ greenwich = GeoPoint 51.48 0.0
 actions : S.Mailbox Events
 actions = S.mailbox N
 
-type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | S (Maybe Sighting) | H (Maybe String) | N
+type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | N
 
 type FormChange = Species String
                 | Count (Result String Int)
@@ -72,22 +72,19 @@ applyEvent (t, e) m = case e of
  C c -> applyClick m t c
  O o -> (applyMaybe (applyO t)) m o
  F fc -> applyFc m fc
- S s -> (applyMaybe applyS) m s
- H h -> (applyMaybe applyH) m h
+ R r -> applyR m r
  T ti -> {m | tileSource <- ti }
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
 
-applyH : Model -> String -> Model
-applyH m woo = { m 
-               | progress <- False 
-               , clicked <- (0.0, Nothing)
-               , sighting <- Sighting (Err "unset") "" greenwich 0.0
-               }
-
-applyS : Model -> Sighting -> Model
-applyS m sght = { m | progress <- True }
+applyR : Model -> Recording -> Model
+applyR m r = 
+    { m
+    | recordings <- (r :: m.recordings)
+    , clicked <- (0.0, Nothing)
+    , sighting <- Sighting (Err "unset") "" greenwich 0.0
+    }
 
 applyFc : Model -> FormChange -> Model
 applyFc m fc = 
@@ -97,7 +94,6 @@ applyFc m fc =
       case fc of
         Count c -> { m | sighting <- (updateCount m.sighting c)}
         Species s -> { m | sighting <- (updateSpecies m.sighting s)}
-
 
 applyClick : Model -> Time -> Maybe (Int, Int) -> Model
 applyClick m t c = 
@@ -135,28 +131,6 @@ applyO t m e =
           applyClick m t (Just pn)
       LongPress pn->
           applyClick m t (Just pn)
-
--- Request dispatch
-onSuccess : (Maybe String) -> Task x ()
-onSuccess res = S.send actions.address (H res)
-
-postSighting : Sighting -> Task Http.Error ()
-postSighting s = 
-    let body = Http.string <| toString s
-        request = Http.post (J.succeed (Just "woot!")) "/sightings" body 
-    in Task.mapError (Debug.log "ohshit") (request `Task.andThen` onSuccess)
-
-pickSightings : Events -> Maybe (Maybe Sighting)
-pickSightings action = 
-    case action of
-      S s -> Just s
-      otherwise -> Nothing
-
-sig : Maybe Sighting -> Task Http.Error ()
-sig m = 
-    case m of 
-      Nothing -> Task.succeed ()
-      Just s -> postSighting s
 
 -- view concerns
 
@@ -209,7 +183,7 @@ spotLayers addr win model clickPoint =
         at = text " at "
         ins = model.sighting
         sighting = { ins | location <- clickLoc, time <- fst model.clicked }
-        submit = Ui.submitButton (J.succeed (Just sighting)) (\s -> S.message addr (S s)) "Save" (disable model)
+        submit = Ui.submitButton (J.succeed sighting) (\s -> S.message addr (R (New s))) "Save" (disable model)
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
 

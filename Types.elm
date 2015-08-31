@@ -3,6 +3,7 @@ module Types (GeoPoint,
               Locator,
               Model,
               Position,
+              Recording(..),
               Sighting,
               TileOffset,
               TileSource,
@@ -56,6 +57,9 @@ type alias Sighting =
     , time : Time
     }
 
+type Recording =
+    New Sighting
+
 type alias Model = 
     { 
       hdpi : Bool
@@ -65,5 +69,6 @@ type alias Model =
     , tileSource : TileSource
     , clicked : (Time, Maybe (Int, Int))
     , sighting : Sighting
+    , recordings : List Recording 
     , progress : Bool
     }
