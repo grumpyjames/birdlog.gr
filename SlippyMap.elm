@@ -8,7 +8,7 @@ import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
 import Tuple as T
-import Types exposing (GeoPoint, Model, Tile, TileOffset, Position, TileSource, Zoom, Recording(..), Sighting, FormState)
+import Types exposing (FormState, GeoPoint, Model, Position, Tile, TileOffset, TileSource, Zoom, Recording(..), Sighting)
 import Ui
 
 import Color exposing (rgb)
@@ -146,9 +146,10 @@ view model =
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] actions.address
         spottedLayers = spotLayers actions.address model
+        recentRecords = records model
         dblClick = index.attr
         clickCatcher = div (dblClick ++ [styles]) []
-    in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
+    in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers)
 
 targetId : Decoder String
 targetId = ("target" := ("id" := J.string))        
@@ -201,7 +202,18 @@ formLayers addr m formState =
         submit = Ui.submitButton decoder (\s -> S.message addr (R (New s))) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in [indicator (clickPoint formState.location), Ui.modal [Attr.id modalId, cancel] m.windowSize theForm]
-        
+
+-- consolidate records into sightings
+sightings : List Recording -> List Sighting
+sightings rs = L.map (\r -> case r of New s -> s) rs
+
+records : Model -> List Html
+records model =
+    let clickPoint s = fromGeopoint model s.location 
+        styles s = absolute ++ position (clickPoint s) ++ zeroMargin
+        placedTick s = div [style (styles s), Attr.class "tick"] []
+    in L.map placedTick (sightings model.recordings)
+
 ons : S.Address (Events) -> Attribute
 ons add = let 
     toMsg v = case v of
@@ -232,6 +244,7 @@ ourButton address msg txt =
 
 -- lon min: -180
 -- lat min : 85.0511
+
 toPixels : Int -> TileOffset -> (Int, Int)
 toPixels tileSize tileOff = 
     let fromTile = T.map ((*) tileSize) tileOff.tile.coordinate
