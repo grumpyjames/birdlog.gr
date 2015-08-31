@@ -4,6 +4,7 @@ module Types (GeoPoint,
               Model,
               Position,
               Recording(..),
+              FormState,
               Sighting,
               TileOffset,
               TileSource,
@@ -50,8 +51,8 @@ type alias TileSource =
 
 type alias Sighting =
     {
-      count: Result String Int
-    , name: String
+      count: Int
+    , species: String
     , location: GeoPoint
     -- millis
     , time : Time
@@ -60,15 +61,22 @@ type alias Sighting =
 type Recording =
     New Sighting
 
+type alias FormState =
+    {
+      count: String
+    , species: String
+    , location: GeoPoint
+    , time: Time
+    }
+
 type alias Model = 
     { 
       hdpi : Bool
     , centre : GeoPoint
+    , windowSize : (Int, Int)
     , zoom : Zoom
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
-    , clicked : (Time, Maybe (Int, Int))
-    , sighting : Sighting
+    , formState : Maybe FormState
     , recordings : List Recording 
-    , progress : Bool
     }

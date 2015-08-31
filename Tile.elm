@@ -11,9 +11,10 @@ import Html exposing (Html, div, fromElement)
 import Html.Attributes exposing (style)
 import List exposing (map)
 
-render : (Int, Int) -> Model -> Html
-render window m =
-    let tileSize = calcTileSize m
+render : Model -> Html
+render m =
+    let window = m.windowSize
+        tileSize = calcTileSize m
         requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
         tileCounts = T.map requiredTiles window
         mapCentre = m.tileSource.locate m.zoom m.centre

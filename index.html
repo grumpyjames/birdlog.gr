@@ -16,7 +16,7 @@
  <body style="margin: 0 auto;">
   <script type="text/javascript">
     var isHdpi = !!window.devicePixelRatio && window.devicePixelRatio > 1;
-    var myapp = Elm.fullscreen(Elm.SlippyMap, { hdpi: isHdpi });
+    var myapp = Elm.fullscreen(Elm.SlippyMap, { hdpi: isHdpi, initialWinX: window.innerWidth, initialWinY: window.innerHeight  });
   </script>
  </body>
 </html>

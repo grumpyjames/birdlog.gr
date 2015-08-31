@@ -8,7 +8,7 @@ import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
 import Tuple as T
-import Types exposing (GeoPoint, Model, Tile, TileOffset, Position, TileSource, Zoom, Recording(..), Sighting)
+import Types exposing (GeoPoint, Model, Tile, TileOffset, Position, TileSource, Zoom, Recording(..), Sighting, FormState)
 import Ui
 
 import Color exposing (rgb)
@@ -29,12 +29,16 @@ import Time exposing (Time)
 import Window
 
 port hdpi : Bool
+port initialWinX : Int
+port initialWinY : Int
 
 -- main
 main = 
     let initialZoom = 15.0
-        initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) [] False
-    in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
+        initialWindow = (initialWinX, initialWinY)
+        initialMouse = (False, (0,0))
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing []
+    in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
@@ -46,10 +50,10 @@ greenwich = GeoPoint 51.48 0.0
 actions : S.Mailbox Events
 actions = S.mailbox N
 
-type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | N
+type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N
 
 type FormChange = Species String
-                | Count (Result String Int)
+                | Count String
 
 type ZoomChange = In Float | Out Float
 
@@ -60,9 +64,10 @@ keyState =
 
 events : Signal (Time, Events)
 events = 
-    let keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
+    let win = S.map W <| Window.dimensions
+        keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map O <| index.signal
-    in Time.timestamp <| S.mergeMany [actions.signal, keys, ot]
+    in Time.timestamp <| S.mergeMany [actions.signal, win, keys, ot]
 
 -- Applying events to the model
 applyEvent : (Time, Events) -> Model -> Model
@@ -74,6 +79,7 @@ applyEvent (t, e) m = case e of
  F fc -> applyFc m fc
  R r -> applyR m r
  T ti -> {m | tileSource <- ti }
+ W w -> {m | windowSize <- w}
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
@@ -82,22 +88,25 @@ applyR : Model -> Recording -> Model
 applyR m r = 
     { m
     | recordings <- (r :: m.recordings)
-    , clicked <- (0.0, Nothing)
-    , sighting <- Sighting (Err "unset") "" greenwich 0.0
+    , formState <- Nothing
     }
 
+applyFc' : FormState -> FormChange -> FormState
+applyFc' fs fc = 
+    case fc of
+      Count c -> { fs | count <- c }
+      Species s -> { fs | species <- s}
+                              
 applyFc : Model -> FormChange -> Model
 applyFc m fc = 
-    let updateCount sg c = { sg | count <- c }
-        updateSpecies sg s = { sg | name <- s }
-    in 
-      case fc of
-        Count c -> { m | sighting <- (updateCount m.sighting c)}
-        Species s -> { m | sighting <- (updateSpecies m.sighting s)}
+    case m.formState of
+      Just fs -> { m | formState <- (Just <| applyFc' fs fc) }
+      Nothing -> m
 
 applyClick : Model -> Time -> Maybe (Int, Int) -> Model
-applyClick m t c = 
-    { m | clicked <- (t, c) }
+applyClick m t c =
+    let newFormState = M.map (\cp -> FormState "" "" (toGeopoint m cp) t) c
+    in { m | formState <- newFormState }
 
 applyZoom : Model -> ZoomChange -> Model
 applyZoom m zc = 
@@ -109,9 +118,7 @@ applyZoom m zc =
     in { m | zoom <- newZoom zc m.zoom }
 
 applyKeys : Model -> (Int, Int) -> Model
-applyKeys m k = 
-    let clicked = snd (m.clicked)
-    in M.withDefault (applyDrag m k) <| M.map (\t -> m) clicked
+applyKeys m k = M.withDefault (applyDrag m k) <| M.map (\t -> m) m.formState
 
 applyDrag : Model -> (Int, Int) -> Model
 applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
@@ -133,13 +140,12 @@ applyO t m e =
           applyClick m t (Just pn)
 
 -- view concerns
-
-view window model = 
-    let mapLayer = Tile.render window model        
+view model = 
+    let mapLayer = Tile.render model
+        window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons [style absolute] actions.address
-        toSpotLayer clicked = spotLayers actions.address window model clicked
-        spottedLayers = M.withDefault [] (M.map toSpotLayer (snd model.clicked))
+        spottedLayers = spotLayers actions.address model
         dblClick = index.attr
         clickCatcher = div (dblClick ++ [styles]) []
     in div [styles] ([mapLayer, clickCatcher, controls] ++ spottedLayers)
@@ -159,34 +165,43 @@ fold f g r =
       Ok o -> g o
       Err e -> f e
 
-disable : Model -> Bool
-disable m = 
-    let 
-        alreadyInProgress = m.progress
-        countIsNumber = fold (\_ -> False) (\_ -> True) m.sighting.count
-        speciesEmpty = String.isEmpty m.sighting.name
-    in alreadyInProgress || (not countIsNumber) || speciesEmpty 
+spotLayers : S.Address (Events) -> Model -> List Html
+spotLayers addr model =
+    case model.formState of
+      Just f -> formLayers addr model f
+      Nothing -> []
 
-spotLayers : S.Address (Events) -> (Int, Int) -> Model -> (Int, Int) -> List Html
-spotLayers addr win model clickPoint =
-    let indicator = Ui.circle (20 * (if model.hdpi then 2 else 1)) clickPoint
-        clickLoc = toGeopoint win model clickPoint 
-        nada = (\_ -> S.message addr (C Nothing))
+toSighting : FormState -> Result String Sighting
+toSighting fs =
+    let countOk = String.toInt fs.count
+        speciesNonEmpty c = 
+            if (String.isEmpty fs.species)
+            then (Result.Err "Species not set")
+            else (Result.Ok (Sighting c fs.species fs.location fs.time))
+    in countOk `Result.andThen` speciesNonEmpty
+
+identity a = a
+
+-- unwrap the formstate outside
+formLayers : S.Address (Events) -> Model -> FormState -> List Html
+formLayers addr m formState =
+    let clickPoint g = fromGeopoint m g 
+        indicator cp = Ui.circle (20 * (if m.hdpi then 2 else 1)) cp
         modalId = "modal"
-        cancel = targetWithId nada "click" modalId
+        cancel = targetWithId (\_ -> S.message addr (C Nothing)) "click" modalId
         saw = text "Spotted: "
-        countDecoder = J.map (Count << String.toInt) targetValue
+        countDecoder = J.map Count targetValue
         sendFormChange fc = S.message addr (F fc)
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
         speciesDecoder = J.map Species targetValue
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder sendFormChange] []
-        at = text " at "
-        ins = model.sighting
-        sighting = { ins | location <- clickLoc, time <- fst model.clicked }
-        submit = Ui.submitButton (J.succeed sighting) (\s -> S.message addr (R (New s))) "Save" (disable model)
+        sighting = toSighting formState
+        decoder = J.customDecoder (J.succeed sighting) identity
+        disabled = fold (\a -> True) (\b -> False) sighting
+        submit = Ui.submitButton decoder (\s -> S.message addr (R (New s))) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
-    in [indicator, Ui.modal [Attr.id modalId, cancel] win theForm]
-
+    in [indicator (clickPoint formState.location), Ui.modal [Attr.id modalId, cancel] m.windowSize theForm]
+        
 ons : S.Address (Events) -> Attribute
 ons add = let 
     toMsg v = case v of
@@ -217,8 +232,6 @@ ourButton address msg txt =
 
 -- lon min: -180
 -- lat min : 85.0511
-
-
 toPixels : Int -> TileOffset -> (Int, Int)
 toPixels tileSize tileOff = 
     let fromTile = T.map ((*) tileSize) tileOff.tile.coordinate
@@ -231,11 +244,21 @@ diff to1 to2 =
         tileDiff = Tile <| to1.tile.coordinate `T.subtract` to2.tile.coordinate
     in TileOffset tileDiff posDiff
 
-toGeopoint : (Int, Int) -> Model -> (Int, Int) -> GeoPoint
-toGeopoint win model clk = 
-    let centre = model.centre
+toGeopoint : Model -> (Int, Int) -> GeoPoint
+toGeopoint model clk = 
+    let win = model.windowSize
+        centre = model.centre
         tileSize = model.tileSource.tileSize
         centrePix = toPixels tileSize <| model.tileSource.locate model.zoom model.centre
         middle = T.map (\a -> a // 2) win
-        clickPix = T.map (\x -> x / (toFloat tileSize)) <| T.map toFloat <| (clk `T.subtract` win) `T.add` centrePix
+        clickPix = T.map (\x -> x / (toFloat tileSize)) <| T.map toFloat <| (clk `T.subtract` middle) `T.add` centrePix
     in GeoPoint (tiley2lat (snd clickPix) model.zoom) (tilex2long (fst clickPix) model.zoom)
+
+fromGeopoint : Model -> GeoPoint -> (Int, Int)
+fromGeopoint model loc =
+    let win = model.windowSize
+        centreOffPx = Debug.log "centreOff" <| toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom <| Debug.log "centre" model.centre
+        tileOffPx = Debug.log "clickOff" <| toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom <| Debug.log "location" loc        
+        pixCentre = T.map (\x -> x // 2) win
+        offPix = (tileOffPx `T.subtract` centreOffPx)
+    in pixCentre `T.add` offPix
