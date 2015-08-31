@@ -36,8 +36,6 @@ main =
         initialModel = Model hdpi greenwich initialZoom (False, (0,0)) defaultTileSrc (0.0, Nothing) (Sighting (Result.Err "unset") "" greenwich 0.0) False
     in S.map2 view Window.dimensions (S.foldp applyEvent initialModel events)
 
-
-
 -- a few useful constants
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
 mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
@@ -139,7 +137,6 @@ applyO t m e =
           applyClick m t (Just pn)
 
 -- Request dispatch
-
 onSuccess : (Maybe String) -> Task x ()
 onSuccess res = S.send actions.address (H res)
 
@@ -160,10 +157,6 @@ sig m =
     case m of 
       Nothing -> Task.succeed ()
       Just s -> postSighting s
-
-port sightingSubmissions : Signal (Task Http.Error ())
-port sightingSubmissions = 
-    S.map sig <| S.filterMap pickSightings Nothing actions.signal
 
 -- view concerns
 
