@@ -8,7 +8,7 @@ import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
 import Tuple as T
-import Types exposing (GeoPoint, Model, TileSource, Zoom, Recording(..), Sighting)
+import Types exposing (GeoPoint, Model, Tile, TileOffset, Position, TileSource, Zoom, Recording(..), Sighting)
 import Ui
 
 import Color exposing (rgb)
@@ -218,12 +218,24 @@ ourButton address msg txt =
 -- lon min: -180
 -- lat min : 85.0511
 
+
+toPixels : Int -> TileOffset -> (Int, Int)
+toPixels tileSize tileOff = 
+    let fromTile = T.map ((*) tileSize) tileOff.tile.coordinate
+        fromPixels = tileOff.position.pixels
+    in fromTile `T.add` fromPixels
+
+diff : TileOffset -> TileOffset -> TileOffset
+diff to1 to2 =
+    let posDiff = Position <| to1.position.pixels `T.subtract` to2.position.pixels
+        tileDiff = Tile <| to1.tile.coordinate `T.subtract` to2.tile.coordinate
+    in TileOffset tileDiff posDiff
+
 toGeopoint : (Int, Int) -> Model -> (Int, Int) -> GeoPoint
 toGeopoint win model clk = 
     let centre = model.centre
         tileSize = model.tileSource.tileSize
-        zoom = model.zoom
+        centrePix = toPixels tileSize <| model.tileSource.locate model.zoom model.centre
         middle = T.map (\a -> a // 2) win
-        relative = T.map (\p -> (toFloat p) / (toFloat tileSize)) (clk `T.subtract` middle)
-        offset = GeoPoint (tiley2lat (snd relative) zoom) (tilex2long (fst relative) zoom)
-    in GeoPoint (-85.0511 + centre.lat + (tiley2lat (snd relative) zoom)) (180.0 + centre.lon + (tilex2long (fst relative) zoom))
+        clickPix = T.map (\x -> x / (toFloat tileSize)) <| T.map toFloat <| (clk `T.subtract` win) `T.add` centrePix
+    in GeoPoint (tiley2lat (snd clickPix) model.zoom) (tilex2long (fst clickPix) model.zoom)
