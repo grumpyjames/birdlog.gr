@@ -257,8 +257,8 @@ toGeopoint model clk =
 fromGeopoint : Model -> GeoPoint -> (Int, Int)
 fromGeopoint model loc =
     let win = model.windowSize
-        centreOffPx = Debug.log "centreOff" <| toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom <| Debug.log "centre" model.centre
-        tileOffPx = Debug.log "clickOff" <| toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom <| Debug.log "location" loc        
+        centreOffPx = toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom model.centre
+        tileOffPx = toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom loc        
         pixCentre = T.map (\x -> x // 2) win
         offPix = (tileOffPx `T.subtract` centreOffPx)
     in pixCentre `T.add` offPix
