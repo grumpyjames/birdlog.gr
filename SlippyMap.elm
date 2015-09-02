@@ -186,8 +186,8 @@ identity a = a
 -- unwrap the formstate outside
 formLayers : S.Address (Events) -> Model -> FormState -> List Html
 formLayers addr m formState =
-    let clickPoint g = fromGeopoint m g 
-        indicator cp = Ui.circle (20 * (if m.hdpi then 2 else 1)) cp
+    let cp = fromGeopoint m formState.location
+        indicators g = [tick [] (cp `T.add` (2, 2)), tick [("color", "#33AA33")] cp]
         modalId = "modal"
         cancel = targetWithId (\_ -> S.message addr (C Nothing)) "click" modalId
         saw = text "Spotted: "
@@ -201,7 +201,13 @@ formLayers addr m formState =
         disabled = fold (\a -> True) (\b -> False) sighting
         submit = Ui.submitButton decoder (\s -> S.message addr (R (New s))) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
-    in [indicator (clickPoint formState.location), Ui.modal [Attr.id modalId, cancel] m.windowSize theForm]
+    in indicators formState.location ++ [Ui.modal [Attr.id modalId, cancel] m.windowSize theForm]
+
+-- tick!
+tick : Style -> (Int, Int) -> Html
+tick moreStyle g = 
+    let styles = absolute ++ position (g `T.subtract` (6, 20)) ++ zeroMargin
+    in div [style (styles ++ moreStyle), Attr.class "tick"] []
 
 -- consolidate records into sightings
 sightings : List Recording -> List Sighting
@@ -209,10 +215,7 @@ sightings rs = L.map (\r -> case r of New s -> s) rs
 
 records : Model -> List Html
 records model =
-    let clickPoint s = fromGeopoint model s.location 
-        styles s = absolute ++ position (clickPoint s) ++ zeroMargin
-        placedTick s = div [style (styles s), Attr.class "tick"] []
-    in L.map placedTick (sightings model.recordings)
+    L.map (\g -> tick [] (fromGeopoint model g)) <| L.map (\s -> s.location) <| sightings model.recordings
 
 ons : S.Address (Events) -> Attribute
 ons add = let 
