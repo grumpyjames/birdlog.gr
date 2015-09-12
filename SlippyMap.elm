@@ -243,7 +243,7 @@ zoomOut address = ourButton ["circ", "zoom"] address (Z (Out 1)) "-"
 locationButton address = ourButton ["circ", "location"] address () ""
 
 buttons attrs actionAddress locationRequestAddress = 
-    div attrs [zoomIn actionAddress, zoomOut actionAddress, tileSrcDropDown actionAddress, locationButton locationRequestAddress]
+    div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton locationRequestAddress, tileSrcDropDown actionAddress]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
