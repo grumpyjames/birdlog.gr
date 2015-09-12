@@ -78,5 +78,6 @@ type alias Model =
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
     , formState : Maybe FormState
-    , recordings : List Recording 
+    , recordings : List Recording
+    , locationProgress : Bool
     }

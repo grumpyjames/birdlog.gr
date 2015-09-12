@@ -43,7 +43,7 @@ main =
     let initialZoom = 15.0
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing []
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -53,10 +53,10 @@ defaultTileSrc = mapBoxSource
 greenwich = GeoPoint 51.48 0.0        
 
 -- Signal graph and model update
+type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | St
+
 actions : S.Mailbox Events
 actions = S.mailbox N
-
-type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float))
 
 type FormChange = Species String
                 | Count String
@@ -72,9 +72,10 @@ events : Signal (Time, Events)
 events = 
     let win = S.map W <| Window.dimensions
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
-        ot = S.map O <| index.signal
-        ls = S.map L <| location
-    in Time.timestamp <| S.mergeMany [actions.signal, ls, win, keys, ot]
+        ot = S.map O index.signal
+        ls = S.map L location
+        lrs = S.sampleOn locationRequests.signal (S.constant St)
+    in Time.timestamp <| S.mergeMany [actions.signal, lrs, ls, win, keys, ot]
 
 -- Applying events to the model
 applyEvent : (Time, Events) -> Model -> Model
@@ -87,7 +88,8 @@ applyEvent (t, e) m = case e of
  R r -> applyR m r
  T ti -> {m | tileSource <- ti }
  W w -> {m | windowSize <- w}
- L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon)}) m l
+ St -> {m | locationProgress <- True}
+ L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
@@ -152,7 +154,7 @@ view model =
     let mapLayer = Tile.render model
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
-        controls = buttons [style absolute] actions.address locationRequests.address
+        controls = buttons model [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address model
         recentRecords = records model
         dblClick = index.attr
@@ -238,24 +240,21 @@ tileSrcDropDown address =
     let onChange = ons address
     in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
 
-zoomIn address = ourButton ["circ", "zoom"] address (Z (In 1)) "+"
-zoomOut address = ourButton ["circ", "zoom"] address (Z (Out 1)) "-"
-locationButton address = ourButton ["circ", "location"] address () ""
+zoomIn address = ourButton [("circ", True), ("zoom", True)] address (Z (In 1)) "+"
+zoomOut address = ourButton [("circ", True), ("zoom", True)] address (Z (Out 1)) "-"
+locationButton inProgress address = ourButton [("circ", True), ("location", True), ("inprogress", inProgress)] address () ""
 
-buttons attrs actionAddress locationRequestAddress = 
-    div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton locationRequestAddress, tileSrcDropDown actionAddress]
+buttons model attrs actionAddress locationRequestAddress = 
+    div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton model.locationProgress locationRequestAddress, tileSrcDropDown actionAddress]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
 upC = rgb 248 248 248
 
-ourButton : List String -> (S.Address a) -> a -> String -> Html
+ourButton : List (String, Bool) -> (S.Address a) -> a -> String -> Html
 ourButton classes address msg txt = 
     let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
-    in button ((allClass classes) :: (L.map (\e -> e address msg) events)) [text txt]
-
-allClass : List String -> Attribute
-allClass classes = Attr.classList <| L.map (\c -> (c, True)) classes
+    in button ((Attr.classList classes) :: (L.map (\e -> e address msg) events)) [text txt]
 
 -- lon min: -180
 -- lat min : 85.0511
