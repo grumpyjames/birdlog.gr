@@ -31,6 +31,12 @@ import Window
 port hdpi : Bool
 port initialWinX : Int
 port initialWinY : Int
+port location : Signal (Maybe (Float, Float))
+port locationError : Signal (Maybe String)
+
+locationRequests = S.mailbox ()
+port requestLocation : Signal ()
+port requestLocation = locationRequests.signal
 
 -- main
 main = 
@@ -50,7 +56,7 @@ greenwich = GeoPoint 51.48 0.0
 actions : S.Mailbox Events
 actions = S.mailbox N
 
-type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N
+type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float))
 
 type FormChange = Species String
                 | Count String
@@ -67,7 +73,8 @@ events =
     let win = S.map W <| Window.dimensions
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map O <| index.signal
-    in Time.timestamp <| S.mergeMany [actions.signal, win, keys, ot]
+        ls = S.map L <| location
+    in Time.timestamp <| S.mergeMany [actions.signal, ls, win, keys, ot]
 
 -- Applying events to the model
 applyEvent : (Time, Events) -> Model -> Model
@@ -80,6 +87,7 @@ applyEvent (t, e) m = case e of
  R r -> applyR m r
  T ti -> {m | tileSource <- ti }
  W w -> {m | windowSize <- w}
+ L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon)}) m l
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
@@ -144,7 +152,7 @@ view model =
     let mapLayer = Tile.render model
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
-        controls = buttons [style absolute] actions.address
+        controls = buttons [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address model
         recentRecords = records model
         dblClick = index.attr
@@ -230,20 +238,21 @@ tileSrcDropDown address =
     let onChange = ons address
     in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
 
-zoomIn address = ourButton address (Z (In 1)) "+"
-zoomOut address = ourButton address (Z (Out 1)) "-"
+zoomIn address = ourButton "zoom" address (Z (In 1)) "+"
+zoomOut address = ourButton "zoom" address (Z (Out 1)) "-"
+locationButton address = ourButton "location" address () ""
 
-buttons attrs actionAddress = 
-    div attrs [zoomIn actionAddress, zoomOut actionAddress, tileSrcDropDown actionAddress]
+buttons attrs actionAddress locationRequestAddress = 
+    div attrs [zoomIn actionAddress, zoomOut actionAddress, tileSrcDropDown actionAddress, locationButton locationRequestAddress]
 
 hoverC = rgb 240 240 240
 downC = rgb 235 235 235
 upC = rgb 248 248 248
 
-ourButton : (S.Address a) -> a -> String -> Html
-ourButton address msg txt = 
+ourButton : String -> (S.Address a) -> a -> String -> Html
+ourButton class address msg txt = 
     let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
-    in button (L.map (\e -> e address msg) events) [text txt]
+    in button ((Attr.class class) :: (L.map (\e -> e address msg) events)) [text txt]
 
 -- lon min: -180
 -- lat min : 85.0511
