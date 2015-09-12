@@ -238,9 +238,9 @@ tileSrcDropDown address =
     let onChange = ons address
     in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
 
-zoomIn address = ourButton "zoom" address (Z (In 1)) "+"
-zoomOut address = ourButton "zoom" address (Z (Out 1)) "-"
-locationButton address = ourButton "location" address () ""
+zoomIn address = ourButton ["circ", "zoom"] address (Z (In 1)) "+"
+zoomOut address = ourButton ["circ", "zoom"] address (Z (Out 1)) "-"
+locationButton address = ourButton ["circ", "location"] address () ""
 
 buttons attrs actionAddress locationRequestAddress = 
     div attrs [zoomIn actionAddress, zoomOut actionAddress, tileSrcDropDown actionAddress, locationButton locationRequestAddress]
@@ -249,10 +249,13 @@ hoverC = rgb 240 240 240
 downC = rgb 235 235 235
 upC = rgb 248 248 248
 
-ourButton : String -> (S.Address a) -> a -> String -> Html
-ourButton class address msg txt = 
+ourButton : List String -> (S.Address a) -> a -> String -> Html
+ourButton classes address msg txt = 
     let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
-    in button ((Attr.class class) :: (L.map (\e -> e address msg) events)) [text txt]
+    in button ((allClass classes) :: (L.map (\e -> e address msg) events)) [text txt]
+
+allClass : List String -> Attribute
+allClass classes = Attr.classList <| L.map (\c -> (c, True)) classes
 
 -- lon min: -180
 -- lat min : 85.0511
