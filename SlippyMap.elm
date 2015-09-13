@@ -180,7 +180,7 @@ spotLayers addr model =
 
 toSighting : FormState -> Result String Sighting
 toSighting fs =
-    let countOk = String.toInt fs.count
+    let countOk = String.toInt fs.count `Result.andThen` (\i -> if i > 0 then (Result.Ok i) else (Result.Err "count must be positive"))
         speciesNonEmpty c = 
             if (String.isEmpty fs.species)
             then (Result.Err "Species not set")
@@ -204,9 +204,9 @@ formLayers addr m formState =
         dismissAddr = S.forwardTo addr (\_ -> C Nothing)
         countDecoder = J.map Count targetValue
         sendFormChange fc = S.message addr (F fc)
-        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
+        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
         speciesDecoder = J.map Species targetValue
-        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Puffin", on "input" speciesDecoder sendFormChange] []
+        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange] []
         sighting = toSighting formState
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
