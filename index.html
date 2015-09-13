@@ -57,7 +57,15 @@ function requestPosition()
             myapp.ports.location.send([position.coords.latitude, position.coords.longitude]);
         },
         function(err) {
-            myapp.ports.locationError.send("Fail");
+            if (err.code == 1) {
+                myapp.ports.locationError.send("Your browser reports that it was not given permission to share your position :-(");
+            } else if (err.code == 2) {
+                myapp.ports.locationError.send("The location finding equipment on your device is turned off :-(");
+            } else if (err.code == 3) {
+                myapp.ports.locationError.send("Your device failed to ascertain its location in a timely fashion. Try again, perhaps?");
+            } else {
+                myapp.ports.locationError.send("A completely unexpected error happened while trying to ascertain your location.");
+            }
         }
     );
 }

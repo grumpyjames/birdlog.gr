@@ -80,4 +80,5 @@ type alias Model =
     , formState : Maybe FormState
     , recordings : List Recording
     , locationProgress : Bool
+    , message : Maybe String
     }

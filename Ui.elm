@@ -4,14 +4,30 @@ import Styles exposing (..)
 import Tuple as T
 
 import Html exposing (Attribute, Html, button, div, text)
-import Html.Attributes exposing (style)
-import Html.Events exposing (onWithOptions, Options)
-import Json.Decode exposing (Decoder)
+import Html.Attributes as Attr exposing (style)
+import Html.Events exposing (on, onWithOptions, Options)
+import Json.Decode as J exposing (Decoder, (:=))
+import Result
 import Signal exposing (Message)
 
-modal : List Attribute -> (Int, Int) -> Html -> Html
-modal attrs size content = 
-    let cell = div (attrs ++ [style [("display", "table-cell"), ("vertical-align", "middle"), ("text-align", "center")]]) [content]
+targetId : Decoder String
+targetId = ("target" := ("id" := J.string))        
+
+isTargetId : String -> Decoder Bool
+isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok True else Result.Err "nope!") 
+
+targetWithId : (Bool -> Message) -> String -> String -> Attribute
+targetWithId msg event id = on event (isTargetId id) msg
+
+modal : (Signal.Address ()) -> (Int, Int) -> Html -> Html
+modal addr size content = 
+    let modalId = "modal"
+        cancel = targetWithId (\_ -> Signal.message addr ()) "click" modalId
+        cell = div (
+                    cancel ::
+                    (Attr.id modalId) :: 
+                    [style [("display", "table-cell"), ("vertical-align", "middle"), ("text-align", "center")]]
+                   ) [content]
     in div ([style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
 
 circle : Int -> (Int, Int) -> Html
@@ -26,4 +42,4 @@ circle radius centre =
 submitButton : Decoder a -> (a -> Message) -> String -> Bool -> Html
 submitButton d effect txt disable = 
     let disableThings = (Options True True)
-    in button [onWithOptions "click" disableThings d effect, Html.Attributes.disabled disable] [text txt]
+    in button [onWithOptions "click" disableThings d effect, Attr.disabled disable] [text txt]

@@ -43,7 +43,7 @@ main =
     let initialZoom = 15.0
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -53,7 +53,7 @@ defaultTileSrc = mapBoxSource
 greenwich = GeoPoint 51.48 0.0        
 
 -- Signal graph and model update
-type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | St
+type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | Le (Maybe String) | St
 
 actions : S.Mailbox Events
 actions = S.mailbox N
@@ -74,8 +74,9 @@ events =
         keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map O index.signal
         ls = S.map L location
+        les = S.map Le locationError
         lrs = S.sampleOn locationRequests.signal (S.constant St)
-    in Time.timestamp <| S.mergeMany [actions.signal, lrs, ls, win, keys, ot]
+    in Time.timestamp <| S.mergeMany [actions.signal, lrs, les, ls, win, keys, ot]
 
 -- Applying events to the model
 applyEvent : (Time, Events) -> Model -> Model
@@ -90,6 +91,7 @@ applyEvent (t, e) m = case e of
  W w -> {m | windowSize <- w}
  St -> {m | locationProgress <- True}
  L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
+ Le le -> {m | message <- le, locationProgress <- False}
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
@@ -155,20 +157,11 @@ view model =
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons model [style absolute] actions.address locationRequests.address
+-- Really want to pick the first of model.formState and model.message that isn't Nothing.                   
         spottedLayers = spotLayers actions.address model
         recentRecords = records model
-        dblClick = index.attr
-        clickCatcher = div (dblClick ++ [styles]) []
+        clickCatcher = div (index.attr ++ [styles]) [] 
     in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers)
-
-targetId : Decoder String
-targetId = ("target" := ("id" := J.string))        
-
-isTargetId : String -> Decoder Bool
-isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok True else Result.Err "nope!") 
-
-targetWithId : (Bool -> S.Message) -> String -> String -> Attribute
-targetWithId msg event id = on event (isTargetId id) msg
 
 fold : (e -> c) -> (o -> c) -> Result e o -> c
 fold f g r = 
@@ -178,9 +171,12 @@ fold f g r =
 
 spotLayers : S.Address (Events) -> Model -> List Html
 spotLayers addr model =
-    case model.formState of
-      Just f -> formLayers addr model f
-      Nothing -> []
+    case model.message of
+      Just message -> modalMessage addr model message
+      Nothing -> 
+          case model.formState of
+            Just f -> formLayers addr model f
+            Nothing -> []
 
 toSighting : FormState -> Result String Sighting
 toSighting fs =
@@ -193,14 +189,19 @@ toSighting fs =
 
 identity a = a
 
+modalMessage : S.Address (Events) -> Model -> String -> List Html
+modalMessage addr m message = 
+    let dismissAddr = S.forwardTo addr (\_ -> Le Nothing)
+        modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (Le Nothing))] [text "Dismiss"]]
+    in [Ui.modal dismissAddr m.windowSize modalContent]
+
 -- unwrap the formstate outside
 formLayers : S.Address (Events) -> Model -> FormState -> List Html
 formLayers addr m formState =
     let cp = fromGeopoint m formState.location
         indicators g = [tick [] (cp `T.add` (2, 2)), tick [("color", "#33AA33")] cp]
-        modalId = "modal"
-        cancel = targetWithId (\_ -> S.message addr (C Nothing)) "click" modalId
         saw = text "Spotted: "
+        dismissAddr = S.forwardTo addr (\_ -> C Nothing)
         countDecoder = J.map Count targetValue
         sendFormChange fc = S.message addr (F fc)
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
@@ -211,7 +212,7 @@ formLayers addr m formState =
         disabled = fold (\a -> True) (\b -> False) sighting
         submit = Ui.submitButton decoder (\s -> S.message addr (R (New s))) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
-    in indicators formState.location ++ [Ui.modal [Attr.id modalId, cancel] m.windowSize theForm]
+    in indicators formState.location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
 -- tick!
 tick : Style -> (Int, Int) -> Html
