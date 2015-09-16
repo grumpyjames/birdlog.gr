@@ -196,7 +196,7 @@ identity a = a
 
 modalMessage : S.Address (Events) -> Model -> String -> List Html
 modalMessage addr m message = 
-    let dismissAddr = S.forwardTo addr (\_ -> Le Nothing)
+    let dismissAddr = S.forwardTo addr (\_ -> DismissModal)
         modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (DismissModal))] [text "Ok..."]]
     in [Ui.modal dismissAddr m.windowSize modalContent]
 
