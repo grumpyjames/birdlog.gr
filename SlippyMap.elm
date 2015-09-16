@@ -54,7 +54,18 @@ greenwich = GeoPoint 51.48 0.0
 
 -- Signal graph and model update
 type Events = ZoomChange Float 
-            | ArrowPress (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | Le (Maybe String) | St
+            | ArrowPress (Int, Int) 
+            | TileSourceChange TileSource 
+            | Click (Int, Int)
+            | DismissModal
+            | O (Maybe Event)
+            | F FormChange 
+            | R Recording
+            | W (Int, Int)
+            | N 
+            | L (Maybe (Float, Float)) 
+            | Le (Maybe String) 
+            | St
 
 actions : S.Mailbox Events
 actions = S.mailbox N
@@ -82,15 +93,16 @@ applyEvent : (Time, Events) -> Model -> Model
 applyEvent (t, e) m = case e of
  ZoomChange f -> applyZoom m f
  ArrowPress ap -> applyKeys m ap 
- C c -> applyClick m t c
+ Click c -> applyClick m t c
  O o -> (applyMaybe (applyO t)) m o
  F fc -> applyFc m fc
  R r -> applyR m r
- T ti -> {m | tileSource <- ti }
+ TileSourceChange tsc -> {m | tileSource <- tsc }
  W w -> {m | windowSize <- w}
  St -> {m | locationProgress <- True}
  L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
  Le le -> {m | message <- le, locationProgress <- False}
+ DismissModal -> { m | message <- Nothing, formState <- Nothing }
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
@@ -114,10 +126,10 @@ applyFc m fc =
       Just fs -> { m | formState <- (Just <| applyFc' fs fc) }
       Nothing -> m
 
-applyClick : Model -> Time -> Maybe (Int, Int) -> Model
+applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newFormState = M.map (\cp -> FormState "" "" (toGeopoint m cp) t) c
-    in { m | formState <- newFormState }
+    let newFormState = FormState "" "" (toGeopoint m c) t
+    in { m | formState <- Just newFormState }
 
 applyZoom : Model -> Float -> Model
 applyZoom m f = { m | zoom <- f + m.zoom }
@@ -140,9 +152,9 @@ applyO t m e =
       Metacarpal.Drag pn ->
           applyDrag m ((1, -1) `T.multiply` pn)
       DoubleClick pn ->
-          applyClick m t (Just pn)
+          applyClick m t pn
       LongPress pn->
-          applyClick m t (Just pn)
+          applyClick m t pn
 
 -- view concerns
 view model = 
@@ -185,7 +197,7 @@ identity a = a
 modalMessage : S.Address (Events) -> Model -> String -> List Html
 modalMessage addr m message = 
     let dismissAddr = S.forwardTo addr (\_ -> Le Nothing)
-        modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (Le Nothing))] [text "Ok..."]]
+        modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (DismissModal))] [text "Ok..."]]
     in [Ui.modal dismissAddr m.windowSize modalContent]
 
 -- unwrap the formstate outside
@@ -194,7 +206,7 @@ formLayers addr m formState =
     let cp = fromGeopoint m formState.location
         indicators g = [tick [] (cp `T.add` (2, 2)), tick [("color", "#33AA33")] cp]
         saw = text "Spotted: "
-        dismissAddr = S.forwardTo addr (\_ -> C Nothing)
+        dismissAddr = S.forwardTo addr (\_ -> DismissModal)
         countDecoder = J.map Count targetValue
         sendFormChange fc = S.message addr (F fc)
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
@@ -227,7 +239,7 @@ ons add = let
                 "OpenStreetMap" -> openStreetMap
                 "ArcGIS" -> arcGIS
                 "MapBox" -> mapBoxSource
-    in on "change" targetValue (\v -> S.message add (T (toMsg v)))
+    in on "change" targetValue (\v -> S.message add (TileSourceChange (toMsg v)))
 
 tileSrcDropDown : S.Address (Events) -> Html
 tileSrcDropDown address = 
