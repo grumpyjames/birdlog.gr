@@ -5,6 +5,7 @@ import Metacarpal
 import Tuple as T
 import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom)
 
+import List as L
 import Maybe as M
 import Time exposing (Time)
 
@@ -15,6 +16,7 @@ type Events = ZoomChange Float
             | ArrowPress (Int, Int) 
             | TileSourceChange TileSource 
             | Click (Int, Int)
+            | AmendRecord Int
             | DismissModal
             | TouchEvent (Maybe Metacarpal.Event)
             | SightingChange FormChange 
@@ -78,6 +80,7 @@ applyEvent (t, e) m =
       LocationReceived l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
       LocationRequestError le -> {m | message <- le, locationProgress <- False}
       DismissModal -> { m | message <- Nothing, formState <- Nothing }
+      AmendRecord id -> prepareToAmend m id
       StartingUp -> m
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
@@ -137,6 +140,27 @@ applyTouchEvent t m e =
       Metacarpal.LongPress pn->
           applyClick m t pn
 
+prepareToAmend : Model -> Int -> Model
+prepareToAmend m id =
+    let pred r =
+            case r of 
+              New s -> s.id == id
+              Amend s -> s.id == id
+        record = findLast pred m.recordings
+    in {m | formState <- M.map fromRecord record}
+
+fromRecord : Recording -> FormState
+fromRecord r =
+    let s = 
+            case r of 
+              New sighting -> sighting
+              Amend sighting -> sighting
+    in FormState s.id (toString s.count) s.species s.location s.time (RecordChange << Amend)
+
+findLast : (a -> Bool) -> List a -> Maybe a
+findLast pred l = 
+    let foldFn a b = if pred a then Just a else b
+    in L.foldr foldFn Nothing l
 
 toGeopoint : Model -> (Int, Int) -> GeoPoint
 toGeopoint model clk = 
