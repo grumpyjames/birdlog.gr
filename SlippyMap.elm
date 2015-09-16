@@ -44,7 +44,7 @@ main =
     let initialZoom = 15.0
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -105,7 +105,7 @@ toSighting fs =
         speciesNonEmpty c = 
             if (String.isEmpty fs.species)
             then (Result.Err "Species not set")
-            else (Result.Ok (Sighting c fs.species fs.location fs.time))
+            else (Result.Ok (Sighting fs.id c fs.species fs.location fs.time))
     in countOk `Result.andThen` speciesNonEmpty
 
 identity a = a

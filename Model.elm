@@ -8,8 +8,8 @@ import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom)
 import Maybe as M
 import Time exposing (Time)
 
-type Recording = 
-    New Sighting
+type Recording = New Sighting
+               | Amend Sighting
 
 type Events = ZoomChange Float 
             | ArrowPress (Int, Int) 
@@ -30,7 +30,8 @@ type FormChange = Species String
 
 type alias FormState =
     {
-      count: String
+      id: Int
+    , count: String
     , species: String
     , location: GeoPoint
     , time: Time
@@ -49,11 +50,13 @@ type alias Model =
     , recordings : List Recording
     , locationProgress : Bool
     , message : Maybe String
+    , nextId : Int
     }
 
 type alias Sighting =
     {
-      count: Int
+      id: Int
+    , count: Int
     , species: String
     , location: GeoPoint
     -- millis
@@ -106,8 +109,9 @@ applySightingChange m fc =
 
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newFormState = FormState "" "" (toGeopoint m c) t (RecordChange << New)
-    in { m | formState <- Just newFormState }
+    let newFormState = FormState m.nextId "" "" (toGeopoint m c) t (RecordChange << New)
+        nextNextId = m.nextId + 1
+    in { m | formState <- Just newFormState, nextId <- nextNextId }
 
 applyZoom : Model -> Float -> Model
 applyZoom m f = { m | zoom <- f + m.zoom }
