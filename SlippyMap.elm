@@ -53,15 +53,13 @@ defaultTileSrc = mapBoxSource
 greenwich = GeoPoint 51.48 0.0        
 
 -- Signal graph and model update
-type Events = Z ZoomChange | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | Le (Maybe String) | St
+type Events = ZoomChange Float | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | Le (Maybe String) | St
 
 actions : S.Mailbox Events
 actions = S.mailbox N
 
 type FormChange = Species String
                 | Count String
-
-type ZoomChange = In Float | Out Float
 
 keyState : Signal (Int, Int)
 keyState =
@@ -81,7 +79,7 @@ events =
 -- Applying events to the model
 applyEvent : (Time, Events) -> Model -> Model
 applyEvent (t, e) m = case e of
- Z zo -> applyZoom m zo
+ ZoomChange f -> applyZoom m f
  K ke -> applyKeys m ke 
  C c -> applyClick m t c
  O o -> (applyMaybe (applyO t)) m o
@@ -120,14 +118,8 @@ applyClick m t c =
     let newFormState = M.map (\cp -> FormState "" "" (toGeopoint m cp) t) c
     in { m | formState <- newFormState }
 
-applyZoom : Model -> ZoomChange -> Model
-applyZoom m zc = 
-    let 
-        newZoom zc z =
-            case zc of
-              In a -> z + a
-              Out a -> z - a
-    in { m | zoom <- newZoom zc m.zoom }
+applyZoom : Model -> Float -> Model
+applyZoom m f = { m | zoom <- f + m.zoom }
 
 applyKeys : Model -> (Int, Int) -> Model
 applyKeys m k = M.withDefault (applyDrag m k) <| M.map (\t -> m) m.formState
@@ -241,8 +233,8 @@ tileSrcDropDown address =
     let onChange = ons address
     in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
 
-zoomIn address = ourButton [("circ", True), ("zoom", True)] address (Z (In 1)) "+"
-zoomOut address = ourButton [("circ", True), ("zoom", True)] address (Z (Out 1)) "-"
+zoomIn address = ourButton [("circ", True), ("zoom", True)] address (ZoomChange 1) "+"
+zoomOut address = ourButton [("circ", True), ("zoom", True)] address (ZoomChange (-1)) "-"
 locationButton inProgress address = ourButton [("circ", True), ("location", True), ("inprogress", inProgress)] address () ""
 
 buttons model attrs actionAddress locationRequestAddress = 
