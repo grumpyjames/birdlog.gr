@@ -59,7 +59,7 @@ type Events = ZoomChange Float
             | Click (Int, Int)
             | DismissModal
             | TouchEvent (Maybe Event)
-            | F FormChange 
+            | SightingChange FormChange 
             | R Recording
             | W (Int, Int)
             | N 
@@ -95,7 +95,7 @@ applyEvent (t, e) m = case e of
  ArrowPress ap -> applyKeys m ap 
  Click c -> applyClick m t c
  TouchEvent te -> (applyMaybe (applyTouchEvent t)) m te
- F fc -> applyFc m fc
+ SightingChange fc -> applySightingChange m fc
  R r -> applyR m r
  TileSourceChange tsc -> {m | tileSource <- tsc }
  W w -> {m | windowSize <- w}
@@ -120,11 +120,16 @@ applyFc' fs fc =
       Count c -> { fs | count <- c }
       Species s -> { fs | species <- s}
                               
-applyFc : Model -> FormChange -> Model
-applyFc m fc = 
-    case m.formState of
-      Just fs -> { m | formState <- (Just <| applyFc' fs fc) }
-      Nothing -> m
+applySightingChange : Model -> FormChange -> Model
+applySightingChange m fc =
+    let applyFc' fs fc = 
+        case fc of
+          Count c -> { fs | count <- c }
+          Species s -> { fs | species <- s}
+    in
+      case m.formState of
+        Just fs -> { m | formState <- (Just <| applyFc' fs fc) }
+        Nothing -> m
 
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
@@ -208,7 +213,7 @@ formLayers addr m formState =
         saw = text "Spotted: "
         dismissAddr = S.forwardTo addr (\_ -> DismissModal)
         countDecoder = J.map Count targetValue
-        sendFormChange fc = S.message addr (F fc)
+        sendFormChange fc = S.message addr (SightingChange fc)
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
         speciesDecoder = J.map Species targetValue
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange] []
