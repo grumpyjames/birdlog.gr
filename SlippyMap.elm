@@ -63,9 +63,9 @@ type Events = ZoomChange Float
             | RecordChange Recording
             | WindowSize (Int, Int)
             | N 
-            | L (Maybe (Float, Float)) 
+            | LocationReceived (Maybe (Float, Float)) 
             | LocationRequestError (Maybe String) 
-            | St
+            | LocationRequestStarted
 
 actions : S.Mailbox Events
 actions = S.mailbox N
@@ -83,9 +83,9 @@ events =
     let win = S.map WindowSize <| Window.dimensions
         keys = S.map ArrowPress <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map TouchEvent index.signal
-        ls = S.map L location
+        ls = S.map LocationReceived location
         les = S.map LocationRequestError locationError
-        lrs = S.sampleOn locationRequests.signal (S.constant St)
+        lrs = S.sampleOn locationRequests.signal (S.constant LocationRequestStarted)
     in Time.timestamp <| S.mergeMany [actions.signal, lrs, les, ls, win, keys, ot]
 
 -- Applying events to the model
@@ -99,8 +99,8 @@ applyEvent (t, e) m = case e of
  RecordChange r -> applyRecordChange m r
  TileSourceChange tsc -> {m | tileSource <- tsc }
  WindowSize w -> {m | windowSize <- w}
- St -> {m | locationProgress <- True}
- L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
+ LocationRequestStarted -> {m | locationProgress <- True}
+ LocationReceived l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
  LocationRequestError le -> {m | message <- le, locationProgress <- False}
  DismissModal -> { m | message <- Nothing, formState <- Nothing }
 
