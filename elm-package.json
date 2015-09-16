@@ -8,8 +8,7 @@
     ],
     "exposed-modules": [
         "Tile",
-        "SlippyMap",
-        "TouchParser"
+        "SlippyMap"
     ],
     "native-modules": true,
     "dependencies": { 

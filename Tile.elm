@@ -1,8 +1,9 @@
 module Tile (render) where
 
 import Styles exposing (px, absolute, dimensions, position, zeroMargin)
+import Model exposing (Model)
 import Tuple as T
-import Types exposing (Model, Position, Tile, TileUrl, Zoom)
+import Types exposing (Position, Tile, TileUrl, Zoom)
 
 import Array exposing (Array, fromList, toList)
 -- FIXME: should use Html instead!

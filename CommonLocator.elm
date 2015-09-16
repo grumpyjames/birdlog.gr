@@ -1,5 +1,6 @@
-module CommonLocator (common, tiley2lat, tilex2long) where
+module CommonLocator (common, tiley2lat, tilex2long, toPixels) where
 
+import Tuple as T
 import Types exposing (Locator, Position, Tile, TileOffset, Zoom)
 
 -- This locator appears to work for most tile sources
@@ -21,6 +22,12 @@ lon2tilex z lon =
 lat2tiley : Zoom -> Float -> Float
 lat2tiley z lat = 
     (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat (floor z)))
+
+toPixels : Int -> TileOffset -> (Int, Int)
+toPixels tileSize tileOff = 
+    let fromTile = T.map ((*) tileSize) tileOff.tile.coordinate
+        fromPixels = tileOff.position.pixels
+    in fromTile `T.add` fromPixels
 
 -- currently unused
 tiley2lat y z = 
