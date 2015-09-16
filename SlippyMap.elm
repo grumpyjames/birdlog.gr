@@ -62,13 +62,13 @@ type Events = ZoomChange Float
             | SightingChange FormChange 
             | RecordChange Recording
             | WindowSize (Int, Int)
-            | N 
+            | StartingUp 
             | LocationReceived (Maybe (Float, Float)) 
             | LocationRequestError (Maybe String) 
             | LocationRequestStarted
 
 actions : S.Mailbox Events
-actions = S.mailbox N
+actions = S.mailbox StartingUp
 
 type FormChange = Species String
                 | Count String
@@ -103,6 +103,7 @@ applyEvent (t, e) m = case e of
  LocationReceived l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
  LocationRequestError le -> {m | message <- le, locationProgress <- False}
  DismissModal -> { m | message <- Nothing, formState <- Nothing }
+ StartingUp -> m
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
