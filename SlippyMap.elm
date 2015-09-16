@@ -53,7 +53,8 @@ defaultTileSrc = mapBoxSource
 greenwich = GeoPoint 51.48 0.0        
 
 -- Signal graph and model update
-type Events = ZoomChange Float | K (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | Le (Maybe String) | St
+type Events = ZoomChange Float 
+            | ArrowPress (Int, Int) | T TileSource | C (Maybe (Int, Int)) | O (Maybe Event) | F FormChange | R Recording | W (Int, Int) | N | L (Maybe (Float, Float)) | Le (Maybe String) | St
 
 actions : S.Mailbox Events
 actions = S.mailbox N
@@ -69,7 +70,7 @@ keyState =
 events : Signal (Time, Events)
 events = 
     let win = S.map W <| Window.dimensions
-        keys = S.map K <| S.map (T.multiply (256, 256)) <| keyState
+        keys = S.map ArrowPress <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map O index.signal
         ls = S.map L location
         les = S.map Le locationError
@@ -80,7 +81,7 @@ events =
 applyEvent : (Time, Events) -> Model -> Model
 applyEvent (t, e) m = case e of
  ZoomChange f -> applyZoom m f
- K ke -> applyKeys m ke 
+ ArrowPress ap -> applyKeys m ap 
  C c -> applyClick m t c
  O o -> (applyMaybe (applyO t)) m o
  F fc -> applyFc m fc
