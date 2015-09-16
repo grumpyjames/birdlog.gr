@@ -61,7 +61,7 @@ type Events = ZoomChange Float
             | TouchEvent (Maybe Event)
             | SightingChange FormChange 
             | RecordChange Recording
-            | W (Int, Int)
+            | WindowSize (Int, Int)
             | N 
             | L (Maybe (Float, Float)) 
             | LocationRequestError (Maybe String) 
@@ -80,7 +80,7 @@ keyState =
 
 events : Signal (Time, Events)
 events = 
-    let win = S.map W <| Window.dimensions
+    let win = S.map WindowSize <| Window.dimensions
         keys = S.map ArrowPress <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map TouchEvent index.signal
         ls = S.map L location
@@ -98,7 +98,7 @@ applyEvent (t, e) m = case e of
  SightingChange fc -> applySightingChange m fc
  RecordChange r -> applyRecordChange m r
  TileSourceChange tsc -> {m | tileSource <- tsc }
- W w -> {m | windowSize <- w}
+ WindowSize w -> {m | windowSize <- w}
  St -> {m | locationProgress <- True}
  L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
  LocationRequestError le -> {m | message <- le, locationProgress <- False}
