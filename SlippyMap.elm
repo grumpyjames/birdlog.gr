@@ -58,7 +58,7 @@ type Events = ZoomChange Float
             | TileSourceChange TileSource 
             | Click (Int, Int)
             | DismissModal
-            | O (Maybe Event)
+            | TouchEvent (Maybe Event)
             | F FormChange 
             | R Recording
             | W (Int, Int)
@@ -82,7 +82,7 @@ events : Signal (Time, Events)
 events = 
     let win = S.map W <| Window.dimensions
         keys = S.map ArrowPress <| S.map (T.multiply (256, 256)) <| keyState
-        ot = S.map O index.signal
+        ot = S.map TouchEvent index.signal
         ls = S.map L location
         les = S.map LocationRequestError locationError
         lrs = S.sampleOn locationRequests.signal (S.constant St)
@@ -94,7 +94,7 @@ applyEvent (t, e) m = case e of
  ZoomChange f -> applyZoom m f
  ArrowPress ap -> applyKeys m ap 
  Click c -> applyClick m t c
- O o -> (applyMaybe (applyO t)) m o
+ TouchEvent te -> (applyMaybe (applyTouchEvent t)) m te
  F fc -> applyFc m fc
  R r -> applyR m r
  TileSourceChange tsc -> {m | tileSource <- tsc }
@@ -146,8 +146,8 @@ move z gpt pixOff =
     in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 
-applyO : Time -> Model -> Event -> Model
-applyO t m e = 
+applyTouchEvent : Time -> Model -> Event -> Model
+applyTouchEvent t m e = 
     case e of
       Metacarpal.Drag pn ->
           applyDrag m ((1, -1) `T.multiply` pn)
