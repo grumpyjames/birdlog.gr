@@ -192,7 +192,7 @@ identity a = a
 modalMessage : S.Address (Events) -> Model -> String -> List Html
 modalMessage addr m message = 
     let dismissAddr = S.forwardTo addr (\_ -> Le Nothing)
-        modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (Le Nothing))] [text "Dismiss"]]
+        modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (Le Nothing))] [text "Ok..."]]
     in [Ui.modal dismissAddr m.windowSize modalContent]
 
 -- unwrap the formstate outside
