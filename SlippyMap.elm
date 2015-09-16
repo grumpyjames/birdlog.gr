@@ -60,7 +60,7 @@ type Events = ZoomChange Float
             | DismissModal
             | TouchEvent (Maybe Event)
             | SightingChange FormChange 
-            | R Recording
+            | RecordChange Recording
             | W (Int, Int)
             | N 
             | L (Maybe (Float, Float)) 
@@ -96,7 +96,7 @@ applyEvent (t, e) m = case e of
  Click c -> applyClick m t c
  TouchEvent te -> (applyMaybe (applyTouchEvent t)) m te
  SightingChange fc -> applySightingChange m fc
- R r -> applyR m r
+ RecordChange r -> applyRecordChange m r
  TileSourceChange tsc -> {m | tileSource <- tsc }
  W w -> {m | windowSize <- w}
  St -> {m | locationProgress <- True}
@@ -107,8 +107,8 @@ applyEvent (t, e) m = case e of
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
 applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
 
-applyR : Model -> Recording -> Model
-applyR m r = 
+applyRecordChange : Model -> Recording -> Model
+applyRecordChange m r = 
     { m
     | recordings <- (r :: m.recordings)
     , formState <- Nothing
@@ -220,7 +220,7 @@ formLayers addr m formState =
         sighting = toSighting formState
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
-        submit = Ui.submitButton decoder (\s -> S.message addr (R (New s))) "Save" disabled
+        submit = Ui.submitButton decoder (\s -> S.message addr (RecordChange (New s))) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in indicators formState.location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
