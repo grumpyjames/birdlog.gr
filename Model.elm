@@ -34,6 +34,7 @@ type alias FormState =
     , species: String
     , location: GeoPoint
     , time: Time
+    , toRecordChange: (Sighting -> Events) 
     }
 
 type alias Model = 
@@ -105,7 +106,7 @@ applySightingChange m fc =
 
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newFormState = FormState "" "" (toGeopoint m c) t
+    let newFormState = FormState "" "" (toGeopoint m c) t (RecordChange << New)
     in { m | formState <- Just newFormState }
 
 applyZoom : Model -> Float -> Model

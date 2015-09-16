@@ -131,7 +131,7 @@ formLayers addr m formState =
         sighting = toSighting formState
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
-        submit = Ui.submitButton decoder (\s -> S.message addr (RecordChange (New s))) "Save" disabled
+        submit = Ui.submitButton decoder (\s -> S.message addr (formState.toRecordChange s)) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in indicators formState.location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
