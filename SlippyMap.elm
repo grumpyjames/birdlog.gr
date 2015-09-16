@@ -64,7 +64,7 @@ type Events = ZoomChange Float
             | W (Int, Int)
             | N 
             | L (Maybe (Float, Float)) 
-            | Le (Maybe String) 
+            | LocationRequestError (Maybe String) 
             | St
 
 actions : S.Mailbox Events
@@ -84,7 +84,7 @@ events =
         keys = S.map ArrowPress <| S.map (T.multiply (256, 256)) <| keyState
         ot = S.map O index.signal
         ls = S.map L location
-        les = S.map Le locationError
+        les = S.map LocationRequestError locationError
         lrs = S.sampleOn locationRequests.signal (S.constant St)
     in Time.timestamp <| S.mergeMany [actions.signal, lrs, les, ls, win, keys, ot]
 
@@ -101,7 +101,7 @@ applyEvent (t, e) m = case e of
  W w -> {m | windowSize <- w}
  St -> {m | locationProgress <- True}
  L l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
- Le le -> {m | message <- le, locationProgress <- False}
+ LocationRequestError le -> {m | message <- le, locationProgress <- False}
  DismissModal -> { m | message <- Nothing, formState <- Nothing }
 
 applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
