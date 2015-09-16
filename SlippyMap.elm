@@ -73,15 +73,12 @@ events =
         lrs = S.sampleOn locationRequests.signal (S.constant LocationRequestStarted)
     in Time.timestamp <| S.mergeMany [actions.signal, lrs, les, ls, win, keys, ot]
 
--- Applying events to the model
-
 -- view concerns
 view model = 
     let mapLayer = Tile.render model
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons model [style absolute] actions.address locationRequests.address
--- Really want to pick the first of model.formState and model.message that isn't Nothing.                   
         spottedLayers = spotLayers actions.address model
         recentRecords = records model
         clickCatcher = div (index.attr ++ [styles]) [] 
