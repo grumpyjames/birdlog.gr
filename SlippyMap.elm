@@ -14,6 +14,7 @@ import Ui
 
 import Color exposing (rgb)
 import Debug exposing (crash, log)
+import Dict as D
 import Http
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
 import Html.Attributes as Attr exposing (style)
@@ -80,7 +81,7 @@ view model =
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons model [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address model
-        recentRecords = records model
+        recentRecords = records actions.address model
         clickCatcher = div (index.attr ++ [styles]) [] 
     in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers)
 
@@ -121,14 +122,14 @@ modalMessage addr m message =
 formLayers : S.Address (Events) -> Model -> SightingForm -> List Html
 formLayers addr m sf =
     let cp = fromGeopoint m ((state sf).location)
-        indicators g = [tick [] (cp `T.add` (2, 2)), tick [("color", "#33AA33")] cp]
+        indicators g = [tick [] [] (cp `T.add` (2, 2)), tick [] [("color", "#33AA33")] cp]
         saw = text "Spotted: "
         dismissAddr = S.forwardTo addr (\_ -> DismissModal)
         countDecoder = J.map Count targetValue
         sendFormChange fc = S.message addr (SightingChange fc)
-        count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
+        count = input ((countVal sf) ++ [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange]) []
         speciesDecoder = J.map Species targetValue
-        bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange] []
+        bird = input ((speciesVal sf) ++ [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange]) []
         sighting = Result.map RecordChange <| toSighting sf
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
@@ -136,26 +137,45 @@ formLayers addr m sf =
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
     in indicators (state sf).location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
+val : (FormState -> String) -> SightingForm -> List Attribute
+val extractor sf = 
+    case sf of
+      PendingAmend fs -> [Attr.value (extractor fs)]
+      otherwise -> []
+
+speciesVal : SightingForm -> List Attribute
+speciesVal = val (\fs -> fs.species)  
+
+countVal : SightingForm -> List Attribute
+countVal = val (\fs -> fs.count)
+
 -- tick!
-tick : Style -> (Int, Int) -> Html
-tick moreStyle g = 
+tick : List Attribute -> Style -> (Int, Int) -> Html
+tick attrs moreStyle g = 
     let styles = absolute ++ position (g `T.subtract` (6, 20)) ++ zeroMargin
-    in div [style (styles ++ moreStyle), Attr.class "tick"] []
+    in div (attrs ++ [style (styles ++ moreStyle), Attr.class "tick"]) []
 
 -- consolidate records into sightings
 sightings : List Recording -> List Sighting
-sightings rs = L.map (\r -> case r of New s -> s) rs
+sightings rs = 
+    let f r d = 
+        case r of
+          New s -> D.insert s.id s d
+          Amend s -> D.insert s.id s d
+    in D.values <| L.foldl f D.empty rs
 
-records : Model -> List Html
-records model =
-    L.map (\g -> tick [] (fromGeopoint model g)) <| L.map (\s -> s.location) <| sightings model.recordings
+records : S.Address (Events) -> Model -> List Html
+records addr model =
+    let amendAction s = on "click" (J.succeed s.id) (\id -> S.message addr (AmendRecord id)) 
+    in L.map (\s -> tick [amendAction s] [] (fromGeopoint model s.location)) <| sightings model.recordings
 
 ons : S.Address (Events) -> Attribute
-ons add = let 
-    toMsg v = case v of
-                "OpenStreetMap" -> openStreetMap
-                "ArcGIS" -> arcGIS
-                "MapBox" -> mapBoxSource
+ons add = 
+    let toMsg v = 
+        case v of
+          "OpenStreetMap" -> openStreetMap
+          "ArcGIS" -> arcGIS
+          "MapBox" -> mapBoxSource
     in on "change" targetValue (\v -> S.message add (TileSourceChange (toMsg v)))
 
 tileSrcDropDown : S.Address (Events) -> Html
