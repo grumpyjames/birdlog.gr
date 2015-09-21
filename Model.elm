@@ -1,4 +1,4 @@
-module Model (Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, applyEvent) where
+module Model (Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, SightingForm(..), applyEvent, state) where
 
 import CommonLocator
 import Metacarpal
@@ -30,14 +30,25 @@ type Events = ZoomChange Float
 type FormChange = Species String
                 | Count String
 
+
+type SightingForm = PendingAmend FormState
+                  | JustSeen FormState
+                  | Amending FormState
+
+state : SightingForm -> FormState
+state sf = 
+    case sf of
+      PendingAmend fs -> fs
+      JustSeen fs -> fs
+      Amending fs -> fs
+
 type alias FormState =
     {
       id: Int
     , count: String
     , species: String
     , location: GeoPoint
-    , time: Time
-    , toRecordChange: (Sighting -> Events) 
+    , time: Time 
     }
 
 type alias Model = 
@@ -48,7 +59,7 @@ type alias Model =
     , zoom : Zoom
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
-    , formState : Maybe FormState
+    , formState : Maybe SightingForm
     , recordings : List Recording
     , locationProgress : Bool
     , message : Maybe String
@@ -72,7 +83,7 @@ applyEvent (t, e) m =
       ArrowPress ap -> applyKeys m ap 
       Click c -> applyClick m t c
       TouchEvent te -> (applyMaybe (applyTouchEvent t)) m te
-      SightingChange fc -> applySightingChange m fc
+      SightingChange fc -> {m | formState <- (M.map (\fs -> applyFormChange fs fc) m.formState)}
       RecordChange r -> applyRecordChange m r
       TileSourceChange tsc -> {m | tileSource <- tsc }
       WindowSize w -> {m | windowSize <- w}
@@ -83,8 +94,8 @@ applyEvent (t, e) m =
       AmendRecord id -> prepareToAmend m id
       StartingUp -> m
 
-applyMaybe : (Model -> a -> Model) -> Model -> Maybe a -> Model
-applyMaybe f m maybs = M.withDefault m <| M.map (\j -> f m j) maybs
+applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
+applyMaybe f b maybs = M.withDefault b <| M.map (\j -> f b j) maybs
 
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
@@ -93,34 +104,32 @@ applyRecordChange m r =
     , formState <- Nothing
     }
 
-applyFc' : FormState -> FormChange -> FormState
-applyFc' fs fc = 
-    case fc of
-      Count c -> { fs | count <- c }
-      Species s -> { fs | species <- s}
-                              
-applySightingChange : Model -> FormChange -> Model
-applySightingChange m fc =
-    let applyFc' fs fc = 
+applyFormChange : SightingForm -> FormChange -> SightingForm
+applyFormChange sf fc =
+    let newFormState fs fc = 
         case fc of
           Count c -> { fs | count <- c }
           Species s -> { fs | species <- s}
     in 
-      case m.formState of
-        Just fs -> { m | formState <- (Just <| applyFc' fs fc) }
-        Nothing -> m
-
+      case sf of
+        PendingAmend fs -> Amending (newFormState fs fc)
+        Amending fs -> Amending (newFormState fs fc)
+        JustSeen fs -> JustSeen (newFormState fs fc)
+ 
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newFormState = FormState m.nextId "" "" (toGeopoint m c) t (RecordChange << New)
+    let newFormState = FormState m.nextId "" "" (toGeopoint m c) t
         nextNextId = m.nextId + 1
-    in { m | formState <- Just newFormState, nextId <- nextNextId }
+    in { m | formState <- Just (JustSeen newFormState), nextId <- nextNextId }
 
 applyZoom : Model -> Float -> Model
 applyZoom m f = { m | zoom <- f + m.zoom }
 
 applyKeys : Model -> (Int, Int) -> Model
-applyKeys m k = M.withDefault (applyDrag m k) <| M.map (\t -> m) m.formState
+applyKeys m k = 
+    case m.formState of
+      Nothing -> applyDrag m k
+      otherwise -> m
 
 applyDrag : Model -> (Int, Int) -> Model
 applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
@@ -147,15 +156,16 @@ prepareToAmend m id =
               New s -> s.id == id
               Amend s -> s.id == id
         record = findLast pred m.recordings
-    in {m | formState <- M.map fromRecord record}
+    in {m | formState <- fromRecord record}
 
-fromRecord : Recording -> FormState
-fromRecord r =
-    let s = 
-            case r of 
-              New sighting -> sighting
-              Amend sighting -> sighting
-    in FormState s.id (toString s.count) s.species s.location s.time (RecordChange << Amend)
+fromRecord : Maybe Recording -> Maybe SightingForm
+fromRecord record =
+    let s r = 
+        case r of 
+          New sighting -> sighting
+          Amend sighting -> sighting
+        fs s = FormState s.id (toString s.count) s.species s.location s.time
+    in M.map PendingAmend <| M.map fs <| M.map s record
 
 findLast : (a -> Bool) -> List a -> Maybe a
 findLast pred l = 

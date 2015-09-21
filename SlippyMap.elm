@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, applyEvent)
+import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
@@ -94,19 +94,20 @@ spotLayers : S.Address (Events) -> Model -> List Html
 spotLayers addr model =
     case model.message of
       Just message -> modalMessage addr model message
-      Nothing -> 
-          case model.formState of
-            Just f -> formLayers addr model f
-            Nothing -> []
-
-toSighting : FormState -> Result String Sighting
-toSighting fs =
-    let countOk = String.toInt fs.count `Result.andThen` (\i -> if i > 0 then (Result.Ok i) else (Result.Err "count must be positive"))
-        speciesNonEmpty c = 
+      Nothing -> M.withDefault [] <| M.map (\fs -> formLayers addr model fs) model.formState 
+ 
+toSighting : SightingForm -> Result String Recording
+toSighting sf =
+    let countOk fs = String.toInt fs.count `Result.andThen` (\i -> if i > 0 then (Result.Ok i) else (Result.Err "count must be positive"))
+        speciesNonEmpty fs c = 
             if (String.isEmpty fs.species)
             then (Result.Err "Species not set")
             else (Result.Ok (Sighting fs.id c fs.species fs.location fs.time))
-    in countOk `Result.andThen` speciesNonEmpty
+        validate fs = (countOk fs) `Result.andThen` (speciesNonEmpty fs)
+    in case sf of
+         JustSeen fs -> Result.map New (validate fs)
+         Amending fs -> Result.map Amend (validate fs)
+         PendingAmend fs -> Result.map Amend (validate fs)
 
 identity a = a
 
@@ -117,9 +118,9 @@ modalMessage addr m message =
     in [Ui.modal dismissAddr m.windowSize modalContent]
 
 -- unwrap the formstate outside
-formLayers : S.Address (Events) -> Model -> FormState -> List Html
-formLayers addr m formState =
-    let cp = fromGeopoint m formState.location
+formLayers : S.Address (Events) -> Model -> SightingForm -> List Html
+formLayers addr m sf =
+    let cp = fromGeopoint m ((state sf).location)
         indicators g = [tick [] (cp `T.add` (2, 2)), tick [("color", "#33AA33")] cp]
         saw = text "Spotted: "
         dismissAddr = S.forwardTo addr (\_ -> DismissModal)
@@ -128,12 +129,12 @@ formLayers addr m formState =
         count = input [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 1",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange] []
         speciesDecoder = J.map Species targetValue
         bird = input [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange] []
-        sighting = toSighting formState
+        sighting = Result.map RecordChange <| toSighting sf
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
-        submit = Ui.submitButton decoder (\s -> S.message addr (formState.toRecordChange s)) "Save" disabled
+        submit = Ui.submitButton decoder (S.message addr) "Save" disabled
         theForm = form [style [("opacity", "0.8")]] [saw, count, bird, submit]
-    in indicators formState.location ++ [Ui.modal dismissAddr m.windowSize theForm]
+    in indicators (state sf).location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
 -- tick!
 tick : Style -> (Int, Int) -> Html
