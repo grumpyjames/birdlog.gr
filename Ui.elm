@@ -19,9 +19,6 @@ isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok 
 targetWithId : (Bool -> Message) -> String -> String -> Attribute
 targetWithId msg event id = on event (isTargetId id) msg
 
---align-items: center;
---justify-content: center;
-
 modal : (Signal.Address ()) -> (Int, Int) -> Html -> Html
 modal addr size content = 
     let modalId = "modal"
