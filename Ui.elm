@@ -19,16 +19,21 @@ isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok 
 targetWithId : (Bool -> Message) -> String -> String -> Attribute
 targetWithId msg event id = on event (isTargetId id) msg
 
+--align-items: center;
+--justify-content: center;
+
 modal : (Signal.Address ()) -> (Int, Int) -> Html -> Html
 modal addr size content = 
     let modalId = "modal"
         cancel = targetWithId (\_ -> Signal.message addr ()) "click" modalId
-        cell = div (
-                    cancel ::
-                    (Attr.id modalId) :: 
-                    [style [("display", "table-cell"), ("vertical-align", "middle"), ("text-align", "center")]]
-                   ) [content]
-    in div ([style (absolute ++ dimensions size ++ [("overflow", "hidden"), ("display", "table")])]) [cell]
+        flexCss = [ ("display", "flex")
+                  , ("align-items", "center")
+                  , ("justify-content", "center")
+                  , ("text-align", "center")
+                  ]
+    in div (
+            cancel :: (Attr.id modalId) :: [style (flexCss ++ absolute ++ dimensions size)]
+           ) [content]
 
 circle : Int -> (Int, Int) -> Html
 circle radius centre = 
