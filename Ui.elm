@@ -1,4 +1,4 @@
-module Ui (circle, modal, submitButton) where
+module Ui (circle, modal, stopEverything, submitButton) where
 
 import Styles exposing (..)
 import Tuple as T
@@ -38,8 +38,9 @@ circle radius centre =
     in 
       div [style (absolute ++ position realPosition ++ dimensions dims ++ [("border-style", "inset"), ("border-radius", px radius), ("border-color", "indigo"), ("border-width", "thick")])] []
 
+stopEverything = (Options True True)
+
 -- disables autosubmit and associated nonsense
 submitButton : Decoder a -> (a -> Message) -> String -> Bool -> Html
 submitButton d effect txt disable = 
-    let disableThings = (Options True True)
-    in button [onWithOptions "click" disableThings d effect, Attr.disabled disable] [text txt]
+    button [onWithOptions "click" stopEverything d effect, Attr.disabled disable] [text txt]

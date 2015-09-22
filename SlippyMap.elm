@@ -196,7 +196,7 @@ upC = rgb 248 248 248
 
 ourButton : List (String, Bool) -> (S.Address a) -> a -> String -> Html
 ourButton classes address msg txt = 
-    let events = [onMouseDown, onClick, (\ad ms -> on "touchend" value (\_ -> Signal.message ad ms))]
+    let events = [onMouseDown, onClick, (\ad ms -> onWithOptions "touchend" Ui.stopEverything value (\_ -> Signal.message ad ms))]
     in button ((Attr.classList classes) :: (L.map (\e -> e address msg) events)) [text txt]
 
 -- lon min: -180
