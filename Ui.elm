@@ -17,7 +17,7 @@ isTargetId : String -> Decoder Bool
 isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok True else Result.Err "nope!") 
 
 targetWithId : (Bool -> Message) -> String -> String -> Attribute
-targetWithId msg event id = on event (isTargetId id) msg
+targetWithId msg event id = onWithOptions event stopEverything (isTargetId id) msg
 
 modal : (Signal.Address ()) -> (Int, Int) -> Html -> Html
 modal addr size content = 
