@@ -15,11 +15,11 @@ common tileSize zoom geopt =
 
 log = logBase e
 
-lon2tilex : Zoom -> Float -> Float
+lon2tilex : Float -> Float -> Float
 lon2tilex z lon = 
     (lon + 180.0) / 360.0 * (2.0 ^ (toFloat (floor z))) 
 
-lat2tiley : Zoom -> Float -> Float
+lat2tiley : Float -> Float -> Float
 lat2tiley z lat = 
     (1.0 - log( tan(lat * pi/180.0) + 1.0 / cos(lat * pi/180.0)) / pi) / 2.0 * (2.0 ^ (toFloat (floor z)))
 

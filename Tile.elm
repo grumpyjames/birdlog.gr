@@ -3,7 +3,7 @@ module Tile (render) where
 import Styles exposing (px, absolute, dimensions, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
-import Types exposing (Position, Tile, TileUrl, Zoom)
+import Types exposing (Position, Tile, TileUrl, Zoom(..))
 
 import Array exposing (Array, fromList, toList)
 -- FIXME: should use Html instead!
@@ -18,7 +18,7 @@ render m =
         tileSize = calcTileSize m
         requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
         tileCounts = T.map requiredTiles window
-        mapCentre = m.tileSource.locate m.zoom m.centre
+        mapCentre = m.tileSource.locate (toFloat <| pickZoom m.zoom) m.centre
         originTile = origin mapCentre.tile tileCounts
         offset = originOffset window tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
@@ -26,12 +26,19 @@ render m =
         attr = style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)
     in div [attr] [applyPosition mapEl offset]
 
+
+pickZoom : Zoom -> Int
+pickZoom zoom = 
+    case zoom of
+      Constant c -> c
+      Between a b -> b
+
 -- in the case of a fractional zoom, expand the tile size appropriately
 calcTileSize : Model -> Int
 calcTileSize m =
     let tileSize = m.tileSource.tileSize
         frac f = f - (toFloat (floor f))
-        digizoom = floor ((frac m.zoom) * (toFloat tileSize))
+        digizoom = floor ((frac (toFloat (pickZoom m.zoom))) * (toFloat tileSize))
     in tileSize + digizoom
 
 applyPosition : Element -> Position -> Html
@@ -41,9 +48,9 @@ applyPosition el distance =
 
 -- use the model to render a single tile
 renderOneTile : Zoom -> Int -> TileUrl -> Tile -> Element
-renderOneTile zoom tileSize url tile = 
-    image tileSize tileSize <| url zoom tile
-
+renderOneTile zoom tileSize url tile =
+    image tileSize tileSize <| url (pickZoom zoom) tile
+    
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile
 origin centreTile tileCounts = 

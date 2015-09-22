@@ -10,8 +10,8 @@ arcGIS = TileSource 256 (common 256) arcGISUrl
 
 arcGISBase = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/"
 
-arcGISUrl : Zoom -> Tile -> String
+arcGISUrl : Int -> Tile -> String
 arcGISUrl z t =
     let (x, y) = t.coordinate
-        wrap z c = c % (2 ^ (floor z)) 
-    in arcGISBase ++ (toString (floor z)) ++ "/" ++ (toString y) ++ "/" ++ (toString (wrap z x)) ++ ".png"
+        wrap z c = c % (2 ^ z) 
+    in arcGISBase ++ (toString z) ++ "/" ++ (toString y) ++ "/" ++ (toString (wrap z x)) ++ ".png"

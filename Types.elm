@@ -6,7 +6,7 @@ module Types (GeoPoint,
               TileSource,
               TileUrl,
               Tile,
-              Zoom) where
+              Zoom(..)) where
 
 import Time exposing (Time)
 
@@ -34,9 +34,11 @@ type alias TileOffset =
     }
 
 type alias Hdpi = Bool
-type alias Locator = Zoom -> GeoPoint -> TileOffset
-type alias TileUrl = Zoom -> Tile -> String
-type alias Zoom = Float
+type alias Locator = Float -> GeoPoint -> TileOffset
+type alias TileUrl = Int -> Tile -> String
+
+type Zoom = Constant Int
+          | Between Int Int
 
 type alias TileSource =
     {

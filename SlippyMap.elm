@@ -9,7 +9,7 @@ import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
 import Tuple as T
-import Types exposing (GeoPoint, Position, Tile, TileOffset, TileSource, Zoom)
+import Types exposing (GeoPoint, Position, Tile, TileOffset, TileSource, Zoom(..))
 import Ui
 
 import Color exposing (rgb)
@@ -42,7 +42,7 @@ port requestLocation = locationRequests.signal
 
 -- main
 main = 
-    let initialZoom = 15.0
+    let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
         initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0
@@ -215,11 +215,19 @@ diff to1 to2 =
         tileDiff = Tile <| to1.tile.coordinate `T.subtract` to2.tile.coordinate
     in TileOffset tileDiff posDiff
 
+
+pickZoom : Zoom -> Int
+pickZoom zoom = 
+    case zoom of
+      Constant c -> c
+      Between a b -> b
+
 fromGeopoint : Model -> GeoPoint -> (Int, Int)
 fromGeopoint model loc =
     let win = model.windowSize
-        centreOffPx = CommonLocator.toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom model.centre
-        tileOffPx = CommonLocator.toPixels model.tileSource.tileSize <| model.tileSource.locate model.zoom loc        
+        z = toFloat <| pickZoom model.zoom
+        centreOffPx = CommonLocator.toPixels model.tileSource.tileSize <| model.tileSource.locate z model.centre
+        tileOffPx = CommonLocator.toPixels model.tileSource.tileSize <| model.tileSource.locate z loc        
         pixCentre = T.map (\x -> x // 2) win
         offPix = (tileOffPx `T.subtract` centreOffPx)
     in pixCentre `T.add` offPix

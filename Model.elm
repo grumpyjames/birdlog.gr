@@ -3,7 +3,7 @@ module Model (Events(..), FormChange(..), FormState, Model, Recording(..), Sight
 import CommonLocator
 import Metacarpal
 import Tuple as T
-import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom)
+import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom(..))
 
 import List as L
 import Maybe as M
@@ -122,8 +122,19 @@ applyClick m t c =
         nextNextId = m.nextId + 1
     in { m | formState <- Just (JustSeen newFormState), nextId <- nextNextId }
 
+newZoom : Zoom -> Float -> Zoom
+newZoom z f =
+    let 
+        intF = floor f
+        zm a b = if (a == b) then Constant a else Between a b
+    in 
+      case z of
+        Constant c -> Between c (c + intF)
+        Between from to -> zm from (to + intF)
+           
+
 applyZoom : Model -> Float -> Model
-applyZoom m f = { m | zoom <- f + m.zoom }
+applyZoom m f = { m | zoom <- newZoom m.zoom f }
 
 applyKeys : Model -> (Int, Int) -> Model
 applyKeys m k = 
@@ -134,9 +145,16 @@ applyKeys m k =
 applyDrag : Model -> (Int, Int) -> Model
 applyDrag m drag = { m | centre <- move m.zoom m.centre drag } 
 
+pickZoom : Zoom -> Int
+pickZoom z = 
+    case z of
+      Constant c -> c
+      Between a b -> b
+
 move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt pixOff = 
-    let (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ (floor z)))) pixOff
+    let zoomInt = pickZoom z
+        (dlon, dlat) = T.map (\t -> (toFloat t) * 1.0 / (toFloat (2 ^ zoomInt))) pixOff
     in GeoPoint (gpt.lat + dlat) (gpt.lon + dlon)
 
 applyTouchEvent : Time -> Model -> Metacarpal.Event -> Model
@@ -177,7 +195,8 @@ toGeopoint model clk =
     let win = model.windowSize
         centre = model.centre
         tileSize = model.tileSource.tileSize
-        centrePix = CommonLocator.toPixels tileSize <| model.tileSource.locate model.zoom model.centre
+        z = toFloat <| pickZoom model.zoom
+        centrePix = CommonLocator.toPixels tileSize <| model.tileSource.locate z model.centre
         middle = T.map (\a -> a // 2) win
         clickPix = T.map (\x -> x / (toFloat tileSize)) <| T.map toFloat <| (clk `T.subtract` middle) `T.add` centrePix
-    in GeoPoint (CommonLocator.tiley2lat (snd clickPix) model.zoom) (CommonLocator.tilex2long (fst clickPix) model.zoom)
+    in GeoPoint (CommonLocator.tiley2lat (snd clickPix) z) (CommonLocator.tilex2long (fst clickPix) z)
