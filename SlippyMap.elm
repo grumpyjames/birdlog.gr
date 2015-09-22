@@ -85,6 +85,12 @@ view model =
         clickCatcher = div (index.attr ++ [styles]) [] 
     in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers)
 
+mapError : (e1 -> e2) -> Result e1 a -> Result e2 a
+mapError g r = 
+    case r of
+      Ok o -> Ok o
+      Err e -> Err (g e)
+
 fold : (e -> c) -> (o -> c) -> Result e o -> c
 fold f g r = 
     case r of
@@ -99,7 +105,7 @@ spotLayers addr model =
  
 toSighting : SightingForm -> Result String Recording
 toSighting sf =
-    let countOk fs = String.toInt fs.count `Result.andThen` (\i -> if i > 0 then (Result.Ok i) else (Result.Err "count must be positive"))
+    let countOk fs = (mapError (\a -> "count must be positive") (String.toInt fs.count)) `Result.andThen` (\i -> if i > 0 then (Result.Ok i) else (Result.Err "count must be positive"))
         speciesNonEmpty fs c = 
             if (String.isEmpty fs.species)
             then (Result.Err "Species not set")
@@ -134,8 +140,9 @@ formLayers addr m sf =
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
         submit = Ui.submitButton decoder (S.message addr) "Save" disabled
+        err s = fold (\e -> [(div [Attr.class "error"] [text ("e: " ++ e)])]) (\b -> []) s
         br = Html.br [] []
-        theForm = form [style [("opacity", "0.8")]] [saw, br, count, br, bird, br, submit]
+        theForm = form [style [("opacity", "0.8")]] ([saw, br, count, br, bird, br] ++ (err sighting) ++ [submit])
     in indicators (state sf).location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
 val : (FormState -> String) -> SightingForm -> List Attribute
