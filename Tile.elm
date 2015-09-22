@@ -6,10 +6,8 @@ import Tuple as T
 import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
 
 import Array exposing (Array, fromList, toList)
--- FIXME: should use Html instead!
-import Graphics.Element exposing (Element, down, flow, image, right)
 import Html exposing (Html, div, fromElement)
-import Html.Attributes exposing (style)
+import Html.Attributes as Attr exposing (style)
 import List exposing (map)
 
 render : Model -> Html
@@ -24,7 +22,7 @@ oneLayer centre window zoom tileSource =
         originTile = origin mapCentre.tile tileCounts
         offset = originOffset window tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        mapEl = flowTable (renderOneTile zoom tileSize tileSource.tileUrl) tileRows
+        mapEl = flowTable tileSize (renderOneTile zoom tileSize tileSource.tileUrl) tileRows
         attr = style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)
     in div [attr] [applyPosition mapEl offset]
 
@@ -42,15 +40,15 @@ calcTileSize tileSource zoom =
         digizoom = floor ((frac (toFloat zoom)) * (toFloat tileSize))
     in tileSize + digizoom
 
-applyPosition : Element -> Position -> Html
+applyPosition : Html -> Position -> Html
 applyPosition el distance =
     let attr = style ((position (distance.pixels)) ++ absolute) 
-    in div [attr] [fromElement el]
+    in div [attr] [el]
 
 -- use the model to render a single tile
-renderOneTile : Int -> Int -> TileUrl -> Tile -> Element
+renderOneTile : Int -> Int -> TileUrl -> Tile -> Html
 renderOneTile zoom tileSize url tile =
-    image tileSize tileSize <| url zoom tile
+    Html.img ([Attr.src (url zoom tile), Attr.style (("display", "inline-block") :: (dimensions (tileSize, tileSize)))]) []
     
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile
@@ -67,10 +65,10 @@ originOffset window tileSize tileCounts centrePixel =
     in Position <| (centerInWindow `T.add` pixelOffsets)
 
 -- Arrange an array of arrays in a nice table
-flowTable : (a -> Element) -> List (List a) -> Element
-flowTable renderer arr = 
-    let flowRender dir r els = flow dir <| map r els
-    in flowRender down (flowRender right renderer) arr
+flowTable : Int -> (a -> Html) -> List (List a) -> Html
+flowTable tileSize renderer arr = 
+    let row els = Html.div [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px tileSize)])] (map renderer els)
+    in div [] (map row arr)
 
 -- supporting functions
 type alias F2 a = a -> a -> a 
