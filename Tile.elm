@@ -3,7 +3,7 @@ module Tile (render) where
 import Styles exposing (px, absolute, dimensions, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
-import Types exposing (Position, Tile, TileUrl, Zoom(..))
+import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
 
 import Array exposing (Array, fromList, toList)
 -- FIXME: should use Html instead!
@@ -13,19 +13,20 @@ import Html.Attributes exposing (style)
 import List exposing (map)
 
 render : Model -> Html
-render m =
-    let window = m.windowSize
-        tileSize = calcTileSize m
-        requiredTiles dim = (3 * m.tileSource.tileSize + dim) // m.tileSource.tileSize
+render m = oneLayer m.centre m.windowSize (pickZoom m.zoom) m.tileSource
+
+oneLayer : GeoPoint -> (Int, Int) -> Int -> TileSource -> Html 
+oneLayer centre window zoom tileSource = 
+    let tileSize = calcTileSize tileSource zoom
+        requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
         tileCounts = T.map requiredTiles window
-        mapCentre = m.tileSource.locate (toFloat <| pickZoom m.zoom) m.centre
+        mapCentre = tileSource.locate (toFloat zoom) centre
         originTile = origin mapCentre.tile tileCounts
         offset = originOffset window tileSize tileCounts mapCentre.position
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        mapEl = flowTable (renderOneTile m.zoom tileSize m.tileSource.tileUrl) tileRows
+        mapEl = flowTable (renderOneTile zoom tileSize tileSource.tileUrl) tileRows
         attr = style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)
     in div [attr] [applyPosition mapEl offset]
-
 
 pickZoom : Zoom -> Int
 pickZoom zoom = 
@@ -34,11 +35,11 @@ pickZoom zoom =
       Between a b -> b
 
 -- in the case of a fractional zoom, expand the tile size appropriately
-calcTileSize : Model -> Int
-calcTileSize m =
-    let tileSize = m.tileSource.tileSize
+calcTileSize : TileSource -> Int -> Int
+calcTileSize tileSource zoom =
+    let tileSize = tileSource.tileSize
         frac f = f - (toFloat (floor f))
-        digizoom = floor ((frac (toFloat (pickZoom m.zoom))) * (toFloat tileSize))
+        digizoom = floor ((frac (toFloat zoom)) * (toFloat tileSize))
     in tileSize + digizoom
 
 applyPosition : Element -> Position -> Html
@@ -47,9 +48,9 @@ applyPosition el distance =
     in div [attr] [fromElement el]
 
 -- use the model to render a single tile
-renderOneTile : Zoom -> Int -> TileUrl -> Tile -> Element
+renderOneTile : Int -> Int -> TileUrl -> Tile -> Element
 renderOneTile zoom tileSize url tile =
-    image tileSize tileSize <| url (pickZoom zoom) tile
+    image tileSize tileSize <| url zoom tile
     
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile
