@@ -1,6 +1,5 @@
 module Tile (render, Ready) where
 
-import Range exposing (nfi)
 import Styles exposing (px, absolute, dimensions, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
