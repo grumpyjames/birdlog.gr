@@ -26,6 +26,7 @@ type Events = ZoomChange Float
             | LocationReceived (Maybe (Float, Float)) 
             | LocationRequestError (Maybe String) 
             | LocationRequestStarted
+            | LayerReady Int
 
 type FormChange = Species String
                 | Count String
@@ -92,10 +93,17 @@ applyEvent (t, e) m =
       LocationRequestError le -> {m | message <- le, locationProgress <- False}
       DismissModal -> { m | message <- Nothing, formState <- Nothing }
       AmendRecord id -> prepareToAmend m id
+      LayerReady lr -> maybeUpdateZoom m lr
       StartingUp -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
 applyMaybe f b maybs = M.withDefault b <| M.map (\j -> f b j) maybs
+
+maybeUpdateZoom : Model -> Int -> Model
+maybeUpdateZoom m readyLevel =
+    case m.zoom of
+      Constant c -> m
+      Between a b -> if b == readyLevel then { m | zoom <- Constant readyLevel } else m
 
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 

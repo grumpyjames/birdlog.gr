@@ -1,4 +1,4 @@
-module Tile (render) where
+module Tile (render, Ready) where
 
 import Range exposing (nfi)
 import Styles exposing (px, absolute, dimensions, position, zeroMargin)
@@ -8,23 +8,30 @@ import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
 
 import Array exposing (Array, fromList, toList)
 import Debug exposing (log)
-import Html exposing (Html, div, fromElement)
+import Html exposing (Attribute, Html, div, fromElement)
 import Html.Attributes as Attr exposing (style)
+import Html.Events exposing (on)
+import Json.Decode as J
 import List exposing (map)
+import Signal as S
 
-render : GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
-render centre window zoom tileSource =
+type alias Ready = Int
+
+render : S.Address Ready -> GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
+render addr centre window zoom tileSource =
     let wrapper content = 
             div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
+        onLoad zoomLayer = on "load" (J.succeed zoomLayer) (\z -> S.message addr zoomLayer)
     in case (Debug.log "zoom" zoom) of 
-      Constant c -> wrapper <| [oneLayer centre tileSource window 0 c]
-      (Between x1 x2) -> wrapper <| [oneLayer centre tileSource window (x1 - x2) x1, oneLayer centre tileSource window 0 x2]
+      Constant c -> wrapper <| [oneLayer [] centre tileSource window 0 c]
+      (Between x1 x2) -> wrapper <| [oneLayer [] centre tileSource window (x1 - x2) x1
+                                    , oneLayer [onLoad x2, style [("display", "none")]] centre tileSource window 0 x2]
 
 r : Int -> Int -> List Int
 r a b = if a > b then List.reverse [b..a] else [a..b]
                     
-oneLayer : GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
-oneLayer centre tileSource window dz zoom =
+oneLayer : List Attribute -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
+oneLayer attrs centre tileSource window dz zoom =
     -- absolute calculations
     let requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
         tileCounts = T.map requiredTiles window           
@@ -41,7 +48,7 @@ oneLayer centre tileSource window dz zoom =
         -- everything after here should be relative
         offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        mapEl = flowTable zoomTileSize (renderOneTile zoom zoomTileSize tileSource.tileUrl) tileRows
+        mapEl = flowTable zoomTileSize (renderOneTile attrs zoom zoomTileSize tileSource.tileUrl) tileRows
     in applyPosition mapEl (offset)
 
 scale : Int -> Int -> Int
@@ -59,9 +66,9 @@ applyPosition el pixels =
     in div [attr] [el]
 
 -- use the model to render a single tile
-renderOneTile : Int -> Int -> TileUrl -> Tile -> Html
-renderOneTile zoom tileSize url tile =
-    Html.img ([Attr.src (url zoom tile), Attr.style (("display", "inline-block") :: (dimensions (tileSize, tileSize)))]) []
+renderOneTile : List Attribute -> Int -> Int -> TileUrl -> Tile -> Html
+renderOneTile attrs zoom tileSize url tile =
+    Html.img (attrs ++ [Attr.src (url zoom tile), Attr.style (("display", "inline-block") :: (dimensions (tileSize, tileSize)))]) []
     
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile
