@@ -1,30 +1,51 @@
 module Tile (render) where
 
+import Range exposing (nfi)
 import Styles exposing (px, absolute, dimensions, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
 import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
 
 import Array exposing (Array, fromList, toList)
+import Debug exposing (log)
 import Html exposing (Html, div, fromElement)
 import Html.Attributes as Attr exposing (style)
 import List exposing (map)
 
-render : Model -> Html
-render m = oneLayer m.centre m.windowSize (pickZoom m.zoom) m.tileSource
+render : GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
+render centre window zoom tileSource =
+    let wrapper content = 
+            div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
+    in case (Debug.log "zoom" zoom) of 
+      Constant c -> wrapper <| [oneLayer centre tileSource window 0 c]
+      (Between x1 x2) -> wrapper <| [oneLayer centre tileSource window (x1 - x2) x1, oneLayer centre tileSource window 0 x2]
 
-oneLayer : GeoPoint -> (Int, Int) -> Int -> TileSource -> Html 
-oneLayer centre window zoom tileSource = 
-    let tileSize = calcTileSize tileSource zoom
-        requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
-        tileCounts = T.map requiredTiles window
+r : Int -> Int -> List Int
+r a b = if a > b then List.reverse [b..a] else [a..b]
+                    
+oneLayer : GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
+oneLayer centre tileSource window dz zoom =
+    -- absolute calculations
+    let requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
+        tileCounts = T.map requiredTiles window           
         mapCentre = tileSource.locate (toFloat zoom) centre
+        -- how big the window should be when zoomed
+        scl = scale dz
+        zoomWindow = T.map (scl) window
+        zoomOffset = T.map (\a -> a // 2) <| window `T.subtract` zoomWindow
+        zoomTileSize = scl tileSource.tileSize
+        -- not sure
         originTile = origin mapCentre.tile tileCounts
-        offset = originOffset window tileSize tileCounts mapCentre.position
+        centreTileOffset = mapCentre.tile.coordinate `T.subtract` originTile.coordinate
+        relativeCentre = (T.map scl mapCentre.position.pixels) `T.add` (T.map ((*) zoomTileSize) centreTileOffset) 
+        -- everything after here should be relative
+        offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        mapEl = flowTable tileSize (renderOneTile zoom tileSize tileSource.tileUrl) tileRows
-        attr = style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)
-    in div [attr] [applyPosition mapEl offset]
+        mapEl = flowTable zoomTileSize (renderOneTile zoom zoomTileSize tileSource.tileUrl) tileRows
+    in applyPosition mapEl (offset)
+
+scale : Int -> Int -> Int
+scale dz a = if dz > 0 then a // (2^dz) else a * (2 ^ (-1 * dz))
 
 pickZoom : Zoom -> Int
 pickZoom zoom = 
@@ -32,17 +53,9 @@ pickZoom zoom =
       Constant c -> c
       Between a b -> b
 
--- in the case of a fractional zoom, expand the tile size appropriately
-calcTileSize : TileSource -> Int -> Int
-calcTileSize tileSource zoom =
-    let tileSize = tileSource.tileSize
-        frac f = f - (toFloat (floor f))
-        digizoom = floor ((frac (toFloat zoom)) * (toFloat tileSize))
-    in tileSize + digizoom
-
-applyPosition : Html -> Position -> Html
-applyPosition el distance =
-    let attr = style ((position (distance.pixels)) ++ absolute) 
+applyPosition : Html -> (Int, Int) -> Html
+applyPosition el pixels =
+    let attr = style ((position pixels) ++ absolute) 
     in div [attr] [el]
 
 -- use the model to render a single tile
@@ -55,14 +68,12 @@ origin : Tile -> (Int, Int) -> Tile
 origin centreTile tileCounts = 
     Tile <| centreTile.coordinate `T.subtract` (T.map (vid 2) tileCounts)
 
--- How far should the origin tile's top left corner be from that of the viewport?
-originOffset : (Int, Int) -> Int -> (Int, Int) -> Position -> Position
-originOffset window tileSize tileCounts centrePixel =
-    let totalTilingSize = T.map ((*) tileSize) tileCounts 
-        centerInWindow = T.map (\pix -> pix // -2) (totalTilingSize `T.subtract` window)
-        halfTile = tileSize // 2
-        pixelOffsets = (halfTile, halfTile) `T.subtract` centrePixel.pixels
-    in Position <| (centerInWindow `T.add` pixelOffsets)
+-- How far should the origin tile's top left corner be from that of the viewport,
+-- given that the centre has this pixel offset in the render area
+originOffset : (Int, Int) -> (Int, Int) -> (Int, Int)
+originOffset window centreOffset =
+    let halfWindow = T.map (\pix -> pix // 2) window
+    in halfWindow `T.subtract` centreOffset
 
 -- Arrange an array of arrays in a nice table
 flowTable : Int -> (a -> Html) -> List (List a) -> Html

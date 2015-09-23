@@ -76,7 +76,7 @@ events =
 
 -- view concerns
 view model = 
-    let mapLayer = Tile.render model
+    let mapLayer = Tile.render model.centre model.windowSize model.zoom model.tileSource
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons model [style absolute] actions.address locationRequests.address
