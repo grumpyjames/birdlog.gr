@@ -69,23 +69,14 @@ originOffset window centreOffset =
     let halfWindow = T.map (\pix -> pix // 2) window
     in halfWindow `T.subtract` centreOffset
 
--- Arrange an array of arrays in a nice table
 flowTable : Int -> (a -> Html) -> List (List a) -> Html
 flowTable tileSize renderer arr = 
     let row els = Html.div [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px tileSize)])] (map renderer els)
     in div [] (map row arr)
 
 -- supporting functions
-type alias F2 a = a -> a -> a 
-
-addP = lift2 T.add
 vid = flip (//)
 mer = flip (%)
-
-lift2 : (F2 (Int, Int)) -> (F2 Position)
-lift2 g = \p1 p2 -> Position <| g p1.pixels p2.pixels
-
-flipY = T.multiply (1, -1)
 
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
