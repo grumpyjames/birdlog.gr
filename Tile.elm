@@ -32,27 +32,25 @@ r a b = if a > b then List.reverse [b..a] else [a..b]
                     
 oneLayer : List Attribute -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
 oneLayer attrs centre tileSource window dz zoom =
-    -- absolute calculations
     let requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
         tileCounts = T.map requiredTiles window           
         mapCentre = tileSource.locate (toFloat zoom) centre
-        -- how big the window should be when zoomed
+        -- scale things based on the differential zoom provided
         scl = scale dz
         zoomWindow = T.map (scl) window
-        zoomOffset = T.map (\a -> a // 2) <| window `T.subtract` zoomWindow
         zoomTileSize = scl tileSource.tileSize
-        -- not sure
+        -- work out how far the desired centre is from the top left of the tiles we will render
         originTile = origin mapCentre.tile tileCounts
         centreTileOffset = mapCentre.tile.coordinate `T.subtract` originTile.coordinate
         relativeCentre = (T.map scl mapCentre.position.pixels) `T.add` (T.map ((*) zoomTileSize) centreTileOffset) 
-        -- everything after here should be relative
+        -- work out how far to shift the map div to make the desired centre the centre
         offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         mapEl = flowTable zoomTileSize (renderOneTile attrs zoom zoomTileSize tileSource.tileUrl) tileRows
-    in applyPosition mapEl (offset)
+    in applyPosition mapEl offset
 
 scale : Int -> Int -> Int
-scale dz a = if dz > 0 then a // (2^dz) else a * (2 ^ (-1 * dz))
+scale dz a = if dz > 0 then a // (2 ^ dz) else a * (2 ^ (-1 * dz))
 
 applyPosition : Html -> (Int, Int) -> Html
 applyPosition el pixels =
