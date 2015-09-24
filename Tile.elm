@@ -22,13 +22,10 @@ render addr centre window zoom tileSource =
             div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
         onLoad zoomLayer = on "load" (J.succeed zoomLayer) (\z -> S.message addr zoomLayer)
         noDisplay = style [("display", "none")]
-    in case (Debug.log "zoom" zoom) of 
+    in case zoom of 
       Constant c -> wrapper <| [oneLayer [] centre tileSource window 0 c]
       (Between x1 x2 progress) -> wrapper <| [ oneLayer [] centre tileSource window (x1 - x2) x1
                                              , oneLayer [onLoad x2, noDisplay] centre tileSource window 0 x2]
-
-r : Int -> Int -> List Int
-r a b = if a > b then List.reverse [b..a] else [a..b]
                     
 oneLayer : List Attribute -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
 oneLayer attrs centre tileSource window dz zoom =
