@@ -103,7 +103,7 @@ maybeUpdateZoom : Model -> Int -> Model
 maybeUpdateZoom m readyLevel =
     case m.zoom of
       Constant c -> m
-      Between a b -> if b == readyLevel then { m | zoom <- Constant readyLevel } else m
+      Between a b p -> if b == readyLevel then { m | zoom <- Constant readyLevel } else m
 
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
@@ -134,11 +134,11 @@ newZoom : Zoom -> Float -> Zoom
 newZoom z f =
     let 
         intF = floor f
-        zm a b = if (a == b) then Constant a else Between a b
+        zm a b = if (a == b) then Constant a else Between a b 0.0
     in 
       case z of
-        Constant c -> Between c (c + intF)
-        Between from to -> zm from (to + intF)
+        Constant c -> Between c (c + intF) 0.0
+        Between from to p -> zm from (to + intF)
            
 
 applyZoom : Model -> Float -> Model
@@ -157,7 +157,7 @@ pickZoom : Zoom -> Int
 pickZoom z = 
     case z of
       Constant c -> c
-      Between a b -> b
+      Between a b p -> b
 
 move : Zoom -> GeoPoint -> (Int, Int) -> GeoPoint
 move z gpt pixOff = 

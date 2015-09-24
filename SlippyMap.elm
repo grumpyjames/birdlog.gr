@@ -221,7 +221,7 @@ pickZoom : Zoom -> Int
 pickZoom zoom = 
     case zoom of
       Constant c -> c
-      Between a b -> b
+      Between a b p -> b
 
 fromGeopoint : Model -> GeoPoint -> (Int, Int)
 fromGeopoint model loc =

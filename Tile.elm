@@ -21,10 +21,11 @@ render addr centre window zoom tileSource =
     let wrapper content = 
             div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
         onLoad zoomLayer = on "load" (J.succeed zoomLayer) (\z -> S.message addr zoomLayer)
+        noDisplay = style [("display", "none")]
     in case (Debug.log "zoom" zoom) of 
       Constant c -> wrapper <| [oneLayer [] centre tileSource window 0 c]
-      (Between x1 x2) -> wrapper <| [oneLayer [] centre tileSource window (x1 - x2) x1
-                                    , oneLayer [onLoad x2, style [("display", "none")]] centre tileSource window 0 x2]
+      (Between x1 x2 progress) -> wrapper <| [ oneLayer [] centre tileSource window (x1 - x2) x1
+                                             , oneLayer [onLoad x2, noDisplay] centre tileSource window 0 x2]
 
 r : Int -> Int -> List Int
 r a b = if a > b then List.reverse [b..a] else [a..b]
@@ -52,12 +53,6 @@ oneLayer attrs centre tileSource window dz zoom =
 
 scale : Int -> Int -> Int
 scale dz a = if dz > 0 then a // (2^dz) else a * (2 ^ (-1 * dz))
-
-pickZoom : Zoom -> Int
-pickZoom zoom = 
-    case zoom of
-      Constant c -> c
-      Between a b -> b
 
 applyPosition : Html -> (Int, Int) -> Html
 applyPosition el pixels =

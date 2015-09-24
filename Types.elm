@@ -38,7 +38,7 @@ type alias Locator = Float -> GeoPoint -> TileOffset
 type alias TileUrl = Int -> Tile -> String
 
 type Zoom = Constant Int
-          | Between Int Int
+          | Between Int Int Float
 
 type alias TileSource =
     {
