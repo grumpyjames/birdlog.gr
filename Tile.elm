@@ -5,8 +5,6 @@ import Model exposing (Model)
 import Tuple as T
 import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
 
-import Array exposing (Array, fromList, toList)
-import Debug exposing (log)
 import Html exposing (Attribute, Html, div, fromElement)
 import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (on)
