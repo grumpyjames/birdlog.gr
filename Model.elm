@@ -5,6 +5,7 @@ import Metacarpal
 import Tuple as T
 import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom(..))
 
+import Debug
 import List as L
 import Maybe as M
 import Time exposing (Time)
@@ -107,8 +108,8 @@ maybeUpdateZoom m (readyLevel, progressIncrement) =
           if b == readyLevel 
           then
               if (p + progressIncrement) > 0.75
-              then { m | zoom <- Constant b }
-              else { m | zoom <- Between a b (p + progressIncrement) }
+              then { m | zoom <- Debug.log "transition complete" (Constant b) }
+              else { m | zoom <- Debug.log "updating progress" (Between a b (p + progressIncrement)) }
           else
               m
 
@@ -145,7 +146,7 @@ newZoom z f =
     in 
       case z of
         Constant c -> Between c (c + intF) 0.0
-        Between from to p -> zm from (to + intF)
+        Between from to p -> Debug.log "switching to zoom" <| zm from (to + intF)
            
 
 applyZoom : Model -> Float -> Model

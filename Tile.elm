@@ -42,14 +42,14 @@ oneLayer maybAddr centre tileSource window dz zoom =
         offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         attrs = loadingAttrs maybAddr tileCounts zoom
-        mapEl = flowTable zoomTileSize (renderOneTile attrs zoom zoomTileSize tileSource.tileUrl) tileRows
+        displ = M.withDefault "inline-block" <| M.map (\_ -> "none") maybAddr
+        mapEl = flowTable zoomTileSize (renderOneTile attrs displ zoom zoomTileSize tileSource.tileUrl) tileRows
     in applyPosition mapEl offset
 
 loadingAttrs : Maybe (S.Address (Progress)) -> (Int, Int) -> Int -> List Attribute
 loadingAttrs maybAddr tileCounts zoom = M.withDefault [] <| 
                                         M.map (\addr -> 
-                                               [ onLoad addr zoom (1.0 / (toFloat (T.combine (*) tileCounts)))
-                                               , style noDisplay]
+                                               [ onLoad addr zoom (1.0 / (toFloat (T.combine (*) tileCounts))) ]
                                               ) maybAddr
 
 onLoad : S.Address (Progress) -> Int -> Float -> Attribute
@@ -64,9 +64,9 @@ applyPosition el pixels =
     in div [attr] [el]
 
 -- use the model to render a single tile
-renderOneTile : List Attribute -> Int -> Int -> TileUrl -> Tile -> Html
-renderOneTile attrs zoom tileSize url tile =
-    Html.img (attrs ++ [Attr.src (url zoom tile), Attr.style (("display", "inline-block") :: (dimensions (tileSize, tileSize)))]) []
+renderOneTile : List Attribute -> String -> Int -> Int -> TileUrl -> Tile -> Html
+renderOneTile attrs display zoom tileSize url tile =
+    Html.img (attrs ++ [Attr.src (url zoom tile), Attr.style (("display", display) :: (dimensions (tileSize, tileSize)))]) []
     
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile
