@@ -103,7 +103,14 @@ maybeUpdateZoom : Model -> (Int, Float) -> Model
 maybeUpdateZoom m (readyLevel, progressIncrement) =
     case m.zoom of
       Constant c -> m
-      Between a b p -> if b == readyLevel then { m | zoom <- Constant readyLevel } else m
+      Between a b p -> 
+          if b == readyLevel 
+          then
+              if (p + progressIncrement) > 0.75
+              then { m | zoom <- Constant b }
+              else { m | zoom <- Between a b (p + progressIncrement) }
+          else
+              m
 
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
