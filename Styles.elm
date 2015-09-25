@@ -1,4 +1,4 @@
-module Styles (Style, absolute, px, position, dimensions, zeroMargin) where
+module Styles (Style, absolute, noDisplay, px, position, dimensions, zeroMargin) where
 
 type alias Style = List (String, String)
 
@@ -16,3 +16,6 @@ dimensions (width, height) = [("width", px width), ("height", px height)]
 
 zeroMargin : Style
 zeroMargin = [("padding", px 0), ("margin", px 0)]
+
+noDisplay : Style
+noDisplay = [("display", "none")]

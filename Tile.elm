@@ -1,6 +1,6 @@
 module Tile (render, Ready) where
 
-import Styles exposing (px, absolute, dimensions, position, zeroMargin)
+import Styles exposing (px, absolute, dimensions, noDisplay, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
 import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
@@ -10,23 +10,23 @@ import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (on)
 import Json.Decode as J
 import List exposing (map)
+import Maybe as M
 import Signal as S
 
+-- zoom, progressIncrement
 type alias Ready = Int
 
 render : S.Address Ready -> GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
 render addr centre window zoom tileSource =
     let wrapper content = 
             div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
-        onLoad zoomLayer = on "load" (J.succeed zoomLayer) (\z -> S.message addr zoomLayer)
-        noDisplay = style [("display", "none")]
     in case zoom of 
-      Constant c -> wrapper <| [oneLayer [] centre tileSource window 0 c]
-      (Between x1 x2 progress) -> wrapper <| [ oneLayer [] centre tileSource window (x1 - x2) x1
-                                             , oneLayer [onLoad x2, noDisplay] centre tileSource window 0 x2]
+      Constant c -> wrapper <| [oneLayer Nothing centre tileSource window 0 c]
+      (Between x1 x2 progress) -> wrapper <| [ oneLayer Nothing centre tileSource window (x1 - x2) x1
+                                             , oneLayer (Just addr) centre tileSource window 0 x2]
                     
-oneLayer : List Attribute -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
-oneLayer attrs centre tileSource window dz zoom =
+oneLayer : Maybe (S.Address (Ready)) -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
+oneLayer maybAddr centre tileSource window dz zoom =
     let requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
         tileCounts = T.map requiredTiles window           
         mapCentre = tileSource.locate (toFloat zoom) centre
@@ -41,8 +41,12 @@ oneLayer attrs centre tileSource window dz zoom =
         -- work out how far to shift the map div to make the desired centre the centre
         offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
+        attrs = M.withDefault [] <| M.map (\addr -> [onLoad addr zoom, style noDisplay]) maybAddr
         mapEl = flowTable zoomTileSize (renderOneTile attrs zoom zoomTileSize tileSource.tileUrl) tileRows
     in applyPosition mapEl offset
+
+onLoad : S.Address (Ready) -> Int -> Attribute
+onLoad addr zoomLayer = on "load" (J.succeed zoomLayer) (\z -> S.message addr zoomLayer)
 
 scale : Int -> Int -> Int
 scale dz a = if dz > 0 then a // (2 ^ dz) else a * (2 ^ (-1 * dz))
