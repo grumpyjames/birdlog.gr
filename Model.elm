@@ -26,7 +26,7 @@ type Events = ZoomChange Float
             | LocationReceived (Maybe (Float, Float)) 
             | LocationRequestError (Maybe String) 
             | LocationRequestStarted
-            | LayerReady Int
+            | LayerReady (Int, Float)
 
 type FormChange = Species String
                 | Count String
@@ -99,8 +99,8 @@ applyEvent (t, e) m =
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
 applyMaybe f b maybs = M.withDefault b <| M.map (\j -> f b j) maybs
 
-maybeUpdateZoom : Model -> Int -> Model
-maybeUpdateZoom m readyLevel =
+maybeUpdateZoom : Model -> (Int, Float) -> Model
+maybeUpdateZoom m (readyLevel, progressIncrement) =
     case m.zoom of
       Constant c -> m
       Between a b p -> if b == readyLevel then { m | zoom <- Constant readyLevel } else m

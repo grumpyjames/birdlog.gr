@@ -1,4 +1,4 @@
-module Tile (render, Ready) where
+module Tile (render, Progress) where
 
 import Styles exposing (px, absolute, dimensions, noDisplay, position, zeroMargin)
 import Model exposing (Model)
@@ -14,9 +14,9 @@ import Maybe as M
 import Signal as S
 
 -- zoom, progressIncrement
-type alias Ready = Int
+type alias Progress = (Int, Float)
 
-render : S.Address Ready -> GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
+render : S.Address Progress -> GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
 render addr centre window zoom tileSource =
     let wrapper content = 
             div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
@@ -25,7 +25,7 @@ render addr centre window zoom tileSource =
       (Between x1 x2 progress) -> wrapper <| [ oneLayer Nothing centre tileSource window (x1 - x2) x1
                                              , oneLayer (Just addr) centre tileSource window 0 x2]
                     
-oneLayer : Maybe (S.Address (Ready)) -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
+oneLayer : Maybe (S.Address (Progress)) -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
 oneLayer maybAddr centre tileSource window dz zoom =
     let requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
         tileCounts = T.map requiredTiles window           
@@ -41,12 +41,19 @@ oneLayer maybAddr centre tileSource window dz zoom =
         -- work out how far to shift the map div to make the desired centre the centre
         offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        attrs = M.withDefault [] <| M.map (\addr -> [onLoad addr zoom, style noDisplay]) maybAddr
+        attrs = loadingAttrs maybAddr tileCounts zoom
         mapEl = flowTable zoomTileSize (renderOneTile attrs zoom zoomTileSize tileSource.tileUrl) tileRows
     in applyPosition mapEl offset
 
-onLoad : S.Address (Ready) -> Int -> Attribute
-onLoad addr zoomLayer = on "load" (J.succeed zoomLayer) (\z -> S.message addr zoomLayer)
+loadingAttrs : Maybe (S.Address (Progress)) -> (Int, Int) -> Int -> List Attribute
+loadingAttrs maybAddr tileCounts zoom = M.withDefault [] <| 
+                                        M.map (\addr -> 
+                                               [ onLoad addr zoom (1.0 / (toFloat (T.combine (*) tileCounts)))
+                                               , style noDisplay]
+                                              ) maybAddr
+
+onLoad : S.Address (Progress) -> Int -> Float -> Attribute
+onLoad addr zoom prog = on "load" (J.succeed (zoom, prog)) (S.message addr)
 
 scale : Int -> Int -> Int
 scale dz a = if dz > 0 then a // (2 ^ dz) else a * (2 ^ (-1 * dz))
