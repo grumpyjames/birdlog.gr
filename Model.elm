@@ -12,6 +12,7 @@ import Time exposing (Time)
 
 type Recording = New Sighting
                | Amend Sighting
+               | Delete Int
 
 type Events = ZoomChange Float 
             | ArrowPress (Int, Int) 
@@ -36,6 +37,7 @@ type FormChange = Species String
 type SightingForm = PendingAmend FormState
                   | JustSeen FormState
                   | Amending FormState
+                  | Deleting FormState
 
 state : SightingForm -> FormState
 state sf = 
@@ -189,6 +191,7 @@ prepareToAmend m id =
             case r of 
               New s -> s.id == id
               Amend s -> s.id == id
+              Delete d -> False
         record = findLast pred m.recordings
     in {m | formState <- fromRecord record}
 

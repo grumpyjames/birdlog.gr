@@ -140,11 +140,20 @@ formLayers addr m sf =
         sighting = Result.map RecordChange <| toSighting sf
         decoder = J.customDecoder (J.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
+        deleteButton = delButton addr sf "Delete"
         submit = Ui.submitButton decoder (S.message addr) "Save" disabled
         err s = fold (\e -> [(div [Attr.class "error"] [text ("e: " ++ e)])]) (\b -> []) s
-        br = Html.br [] []
-        theForm = form [style [("opacity", "0.8")]] ([saw, br, count, br, bird, br] ++ (err sighting) ++ [submit])
+        theForm = form [style [("opacity", "0.8")]] ([saw, br, count, br, bird, br] ++ (err sighting) ++ [submit] ++ deleteButton)
     in indicators (state sf).location ++ [Ui.modal dismissAddr m.windowSize theForm]
+
+br = Html.br [] []
+
+delButton : S.Address (Events) -> SightingForm -> String -> List Html
+delButton addr sf title = 
+    case sf of 
+      Amending fs -> [br, Ui.submitButton (J.succeed (RecordChange (Delete fs.id))) (S.message addr) title False]
+      PendingAmend pa -> [br, Ui.submitButton (J.succeed (RecordChange (Delete pa.id))) (S.message addr) title False]
+      otherwise -> []
 
 val : (FormState -> String) -> SightingForm -> List Attribute
 val extractor sf = 
@@ -171,7 +180,8 @@ sightings rs =
         case r of
           New s -> D.insert s.id s d
           Amend s -> D.insert s.id s d
-    in D.values <| L.foldl f D.empty rs
+          Delete id -> D.remove id d
+    in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
 
 records : S.Address (Events) -> Model -> List Html
 records addr model =
@@ -215,7 +225,6 @@ diff to1 to2 =
     let posDiff = Position <| to1.position.pixels `T.subtract` to2.position.pixels
         tileDiff = Tile <| to1.tile.coordinate `T.subtract` to2.tile.coordinate
     in TileOffset tileDiff posDiff
-
 
 pickZoom : Zoom -> Int
 pickZoom zoom = 
