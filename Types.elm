@@ -1,6 +1,7 @@
 module Types (GeoPoint,
               Hdpi,
               Locator,
+              MapState,
               Position,
               TileOffset,
               TileSource,
@@ -47,4 +48,11 @@ type alias TileSource =
     , tileUrl: TileUrl
     }
 
+type alias MapState a =
+    { a
+    | centre : GeoPoint
+    , tileSource : TileSource
+    , windowSize : (Int, Int)
+    , zoom : Zoom
+    }
 

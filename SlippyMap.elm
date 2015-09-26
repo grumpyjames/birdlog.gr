@@ -77,7 +77,7 @@ events =
 -- view concerns
 view model = 
     let layerReady = S.forwardTo actions.address (\r -> LayerReady r)
-        mapLayer = Tile.render layerReady model.centre model.windowSize model.zoom model.tileSource
+        mapLayer = Tile.render layerReady model
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons model [style absolute] actions.address locationRequests.address

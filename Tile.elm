@@ -3,7 +3,7 @@ module Tile (render, Progress) where
 import Styles exposing (px, absolute, dimensions, noDisplay, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
-import Types exposing (GeoPoint, Position, Tile, TileSource, TileUrl, Zoom(..))
+import Types exposing (GeoPoint, MapState, Position, Tile, TileSource, TileUrl, Zoom(..))
 
 import Html exposing (Attribute, Html, div, fromElement)
 import Html.Attributes as Attr exposing (style)
@@ -16,14 +16,14 @@ import Signal as S
 -- zoom, progressIncrement
 type alias Progress = (Int, Float)
 
-render : S.Address Progress -> GeoPoint -> (Int, Int) -> Zoom -> TileSource -> Html
-render addr centre window zoom tileSource =
+render : S.Address Progress -> (MapState a) -> Html
+render addr map =
     let wrapper content = 
-            div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions window) ++ zeroMargin)] content
-    in case zoom of 
-      Constant c -> wrapper <| [oneLayer Nothing centre tileSource window 0 c]
-      (Between x1 x2 progress) -> wrapper <| [ oneLayer Nothing centre tileSource window (x1 - x2) x1
-                                             , oneLayer (Just addr) centre tileSource window 0 x2]
+            div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions map.windowSize) ++ zeroMargin)] content
+    in case map.zoom of 
+      Constant c -> wrapper <| [oneLayer Nothing map.centre map.tileSource map.windowSize 0 c]
+      (Between x1 x2 progress) -> wrapper <| [ oneLayer Nothing map.centre map.tileSource map.windowSize (x1 - x2) x1
+                                             , oneLayer (Just addr) map.centre map.tileSource map.windowSize 0 x2]
                     
 oneLayer : Maybe (S.Address (Progress)) -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
 oneLayer maybAddr centre tileSource window dz zoom =
