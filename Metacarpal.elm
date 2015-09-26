@@ -1,4 +1,7 @@
-module Metacarpal (Event(..), InnerEvent, Metacarpal, index) where
+module Metacarpal ( Event(..)
+                  , InnerEvent
+                  , Metacarpal
+                  , index) where
 
 import Tuple as T
 

@@ -1,4 +1,5 @@
-module Tile (render, Progress) where
+module Tile ( render
+            , Progress) where
 
 import Styles exposing (px, absolute, dimensions, noDisplay, position, zeroMargin)
 import Model exposing (Model)

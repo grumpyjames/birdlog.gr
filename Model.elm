@@ -1,4 +1,13 @@
-module Model (ModalState(..), Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, SightingForm(..), applyEvent, state) where
+module Model ( ModalState(..)
+             , Events(..)
+             , FormChange(..)
+             , FormState
+             , Model
+             , Recording(..)
+             , Sighting
+             , SightingForm(..)
+             , applyEvent
+             , state) where
 
 import CommonLocator
 import Metacarpal
