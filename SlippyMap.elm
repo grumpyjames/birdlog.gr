@@ -45,7 +45,7 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0 0
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants

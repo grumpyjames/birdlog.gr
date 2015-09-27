@@ -76,6 +76,8 @@ type alias Model =
     , locationProgress : Bool
     , message : Maybe String
     , nextSequence : Int
+    -- records with sequence < than this have been synced with the server
+    , highWaterMark : Int
     }
 
 type alias Sighting =
