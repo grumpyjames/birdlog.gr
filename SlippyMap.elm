@@ -110,7 +110,7 @@ toSighting sf =
         speciesNonEmpty fs c = 
             if (String.isEmpty fs.species)
             then (Result.Err "Species not set")
-            else (Result.Ok (Sighting fs.id c fs.species fs.location fs.time))
+            else (Result.Ok (Sighting fs.sequence c fs.species fs.location fs.time))
         validate fs = (countOk fs) `Result.andThen` (speciesNonEmpty fs)
     in case sf of
          JustSeen fs -> Result.map New (validate fs)
@@ -151,8 +151,8 @@ br = Html.br [] []
 delButton : S.Address (Events) -> SightingForm -> String -> List Html
 delButton addr sf title = 
     case sf of 
-      Amending fs -> [br, Ui.submitButton (J.succeed (RecordChange (Delete fs.id))) (S.message addr) title False]
-      PendingAmend pa -> [br, Ui.submitButton (J.succeed (RecordChange (Delete pa.id))) (S.message addr) title False]
+      Amending fs -> [br, Ui.submitButton (J.succeed (RecordChange (Delete fs.sequence))) (S.message addr) title False]
+      PendingAmend pa -> [br, Ui.submitButton (J.succeed (RecordChange (Delete pa.sequence))) (S.message addr) title False]
       otherwise -> []
 
 val : (FormState -> String) -> SightingForm -> List Attribute
@@ -178,14 +178,14 @@ sightings : List Recording -> List Sighting
 sightings rs = 
     let f r d = 
         case r of
-          New s -> D.insert s.id s d
-          Amend s -> D.insert s.id s d
-          Delete id -> D.remove id d
+          New s -> D.insert s.sequence s d
+          Amend s -> D.insert s.sequence s d
+          Delete sequence -> D.remove sequence d
     in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
 
 records : S.Address (Events) -> Model -> List Html
 records addr model =
-    let amendAction s = on "click" (J.succeed s.id) (\id -> S.message addr (AmendRecord id)) 
+    let amendAction s = on "click" (J.succeed s.sequence) (\sequence -> S.message addr (AmendRecord sequence)) 
     in L.map (\s -> tick [amendAction s] [] (fromGeopoint model s.location)) <| sightings model.recordings
 
 ons : S.Address (Events) -> Attribute

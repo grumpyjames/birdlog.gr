@@ -56,7 +56,7 @@ state sf =
 
 type alias FormState =
     {
-      id: Int
+      sequence: Int
     , count: String
     , species: String
     , location: GeoPoint
@@ -75,12 +75,12 @@ type alias Model =
     , recordings : List Recording
     , locationProgress : Bool
     , message : Maybe String
-    , nextId : Int
+    , nextSequence : Int
     }
 
 type alias Sighting =
     {
-      id: Int
+      sequence: Int
     , count: Int
     , species: String
     , location: GeoPoint
@@ -103,7 +103,7 @@ applyEvent (t, e) m =
       LocationReceived l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
       LocationRequestError le -> {m | message <- le, locationProgress <- False}
       DismissModal -> { m | message <- Nothing, formState <- Nothing }
-      AmendRecord id -> prepareToAmend m id
+      AmendRecord sequence -> prepareToAmend m sequence
       LayerReady lr -> maybeUpdateZoom m lr
       StartingUp -> m
 
@@ -144,9 +144,9 @@ applyFormChange sf fc =
  
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newFormState = FormState m.nextId "" "" (toGeopoint m c) t
-        nextNextId = m.nextId + 1
-    in { m | formState <- Just (JustSeen newFormState), nextId <- nextNextId }
+    let newFormState = FormState m.nextSequence "" "" (toGeopoint m c) t
+        nextNextSequence = m.nextSequence + 1
+    in { m | formState <- Just (JustSeen newFormState), nextSequence <- nextNextSequence }
 
 newZoom : Zoom -> Float -> Zoom
 newZoom z f =
@@ -194,11 +194,11 @@ applyTouchEvent t m e =
           applyClick m t pn
 
 prepareToAmend : Model -> Int -> Model
-prepareToAmend m id =
+prepareToAmend m sequence =
     let pred r =
             case r of 
-              New s -> s.id == id
-              Amend s -> s.id == id
+              New s -> s.sequence == sequence
+              Amend s -> s.sequence == sequence
               Delete d -> False
         record = findLast pred m.recordings
     in {m | formState <- fromRecord record}
@@ -209,7 +209,7 @@ fromRecord record =
         case r of 
           New sighting -> sighting
           Amend sighting -> sighting
-        fs s = FormState s.id (toString s.count) s.species s.location s.time
+        fs s = FormState s.sequence (toString s.count) s.species s.location s.time
     in M.map PendingAmend <| M.map fs <| M.map s record
 
 findLast : (a -> Bool) -> List a -> Maybe a
