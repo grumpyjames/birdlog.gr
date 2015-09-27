@@ -2,8 +2,8 @@ module Model ( Events(..)
              , FormChange(..)
              , FormState
              , Model
-             , Record
              , Recording(..)
+             , Sequenced
              , Sighting
              , SightingForm(..)
              , applyEvent
@@ -19,10 +19,9 @@ import List as L
 import Maybe as M
 import Time exposing (Time)
 
-type alias Record = 
-    {
-      sequence: Int
-    , recording: Recording
+type alias Sequenced a = 
+    { sequence: Int
+    , item : a
     }
 
 type Recording = New Sighting
@@ -47,7 +46,6 @@ type Events = ZoomChange Float
 
 type FormChange = Species String
                 | Count String
-
 
 type SightingForm = PendingAmend Int FormState
                   | JustSeen FormState
@@ -78,7 +76,7 @@ type alias Model =
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
     , formState : Maybe SightingForm
-    , records : List Record
+    , records : List (Sequenced Recording)
     , locationProgress : Bool
     , message : Maybe String
     , nextSequence : Int
@@ -135,7 +133,7 @@ applyRecordChange m r =
     let newSequence = m.nextSequence + 1
     in
       { m
-      | records <- (Record m.nextSequence r) :: m.records
+      | records <- (Sequenced m.nextSequence r) :: m.records
       , formState <- Nothing
       , nextSequence <- newSequence
       }
@@ -208,14 +206,14 @@ prepareToAmend m seq =
         record = findLast pred m.records
     in {m | formState <- fromRecord record}
 
-toFormState : Record -> Maybe SightingForm
+toFormState : (Sequenced Recording) -> Maybe SightingForm
 toFormState r = 
-    case r.recording of 
+    case r.item of 
       Delete seq -> Nothing
       New s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
       Amend s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
 
-fromRecord : Maybe Record -> Maybe SightingForm
+fromRecord : Maybe (Sequenced Recording) -> Maybe SightingForm
 fromRecord record = record `M.andThen` toFormState
 
 findLast : (a -> Bool) -> List a -> Maybe a

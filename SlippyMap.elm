@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, Model, Record, Recording(..), Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), Sequenced, Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
@@ -175,19 +175,19 @@ tick attrs moreStyle g =
 
 -- consolidate records into sightings
 -- really ought to return (Sequenced Sighting)
-sightings : List Record -> List (Int, Sighting)
+sightings : List (Sequenced Recording) -> List (Sequenced Sighting)
 sightings rs = 
     let f r d = 
-        case r.recording of
-          New s -> D.insert r.sequence (r.sequence, s) d
-          Amend s -> D.insert r.sequence (r.sequence, s) d
+        case r.item of
+          New s -> D.insert r.sequence (Sequenced r.sequence s) d
+          Amend s -> D.insert r.sequence (Sequenced r.sequence s) d
           Delete seq -> D.remove seq d
     in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
 
 records : S.Address (Events) -> Model -> List Html
 records addr model =
     let amendAction seq = on "click" (J.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
-    in L.map (\(seq, s) -> tick [amendAction seq] [] (fromGeopoint model s.location)) <| sightings model.records
+    in L.map (\s -> tick [amendAction s.sequence] [] (fromGeopoint model s.item.location)) <| sightings model.records
 
 ons : S.Address (Events) -> Attribute
 ons add = 
