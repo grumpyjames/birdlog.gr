@@ -30,15 +30,42 @@ import Task exposing (Task)
 import Time exposing (Time)
 import Window
 
+-- graphical hacks
 port hdpi : Bool
 port initialWinX : Int
 port initialWinY : Int
+
+-- location sourcing
 port location : Signal (Maybe (Float, Float))
 port locationError : Signal (Maybe String)
 
 locationRequests = S.mailbox ()
 port requestLocation : Signal ()
 port requestLocation = locationRequests.signal
+
+-- http replication
+
+type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
+
+pack : List (Sequenced Recording) -> ReplicationPacket
+pack rs = Debug.crash "not ready yet"
+
+postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
+postRecords addr rs =
+    let http p = Http.post (J.succeed (HighWaterMark p.maxSequence)) "/records" p.body 
+    in http (pack rs) `Task.andThen` (S.send addr)
+
+replicationEvents : Signal (List (Sequenced Recording))
+replicationEvents = 
+    let rev e = 
+            case e of 
+              Replicate rs -> Just rs
+              otherwise -> Nothing
+    in S.filterMap rev [] actions.signal 
+
+port httpReplication : Signal (Task Http.Error ())
+port httpReplication =
+    S.map (postRecords actions.address) replicationEvents 
 
 -- main
 main = 

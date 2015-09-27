@@ -43,6 +43,8 @@ type Events = ZoomChange Float
             | LocationRequestError (Maybe String) 
             | LocationRequestStarted
             | LayerReady (Int, Float)
+            | Replicate (List (Sequenced Recording))
+            | HighWaterMark Int
 
 type FormChange = Species String
                 | Count String
@@ -110,7 +112,8 @@ applyEvent (t, e) m =
       DismissModal -> { m | message <- Nothing, formState <- Nothing }
       AmendRecord sequence -> prepareToAmend m sequence
       LayerReady lr -> maybeUpdateZoom m lr
-      StartingUp -> m
+      HighWaterMark hwm -> { m | highWaterMark <- hwm }
+      otherwise -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
 applyMaybe f b maybs = M.withDefault b <| M.map (\j -> f b j) maybs
