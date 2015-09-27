@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (ModalState(..), Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
@@ -45,7 +45,7 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc [] False Nothing 0
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -100,12 +100,9 @@ fold f g r =
 
 spotLayers : S.Address (Events) -> Model -> List Html
 spotLayers addr model =
-    case model.modalState of
-      Nothing -> []
-      Just ms ->
-          case ms of
-            Msg msg -> modalMessage addr model msg
-            Form sf -> formLayers addr model sf
+    case model.message of
+      Just message -> modalMessage addr model message
+      Nothing -> M.withDefault [] <| M.map (\fs -> formLayers addr model fs) model.formState 
  
 toSighting : SightingForm -> Result String Recording
 toSighting sf =

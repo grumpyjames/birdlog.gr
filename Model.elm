@@ -1,5 +1,4 @@
-module Model ( ModalState(..)
-             , Events(..)
+module Model ( Events(..)
              , FormChange(..)
              , FormState
              , Model
@@ -64,9 +63,6 @@ type alias FormState =
     , time: Time 
     }
 
-type ModalState = Form SightingForm
-                | Msg String
-
 type alias Model = 
     { 
       hdpi : Bool
@@ -75,9 +71,10 @@ type alias Model =
     , zoom : Zoom
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
+    , formState : Maybe SightingForm
     , recordings : List Recording
     , locationProgress : Bool
-    , modalState : Maybe ModalState
+    , message : Maybe String
     , nextId : Int
     }
 
@@ -98,14 +95,14 @@ applyEvent (t, e) m =
       ArrowPress ap -> applyKeys m ap 
       Click c -> applyClick m t c
       TouchEvent te -> (applyMaybe (applyTouchEvent t)) m te
-      SightingChange fc -> {m | modalState <- (M.map (\fs -> applyFormChange fs fc) m.modalState)}
+      SightingChange fc -> {m | formState <- (M.map (\fs -> applyFormChange fs fc) m.formState)}
       RecordChange r -> applyRecordChange m r
       TileSourceChange tsc -> {m | tileSource <- tsc }
       WindowSize w -> {m | windowSize <- w}
       LocationRequestStarted -> {m | locationProgress <- True}
       LocationReceived l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
-      LocationRequestError le -> {m | modalState <- M.map Msg le, locationProgress <- False}
-      DismissModal -> { m | modalState <- Nothing }
+      LocationRequestError le -> {m | message <- le, locationProgress <- False}
+      DismissModal -> { m | message <- Nothing, formState <- Nothing }
       AmendRecord id -> prepareToAmend m id
       LayerReady lr -> maybeUpdateZoom m lr
       StartingUp -> m
@@ -130,29 +127,26 @@ applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
     { m
     | recordings <- (r :: m.recordings)
-    , modalState <- Nothing
+    , formState <- Nothing
     }
 
-applyFormChange : ModalState -> FormChange -> ModalState
-applyFormChange ms fc =
+applyFormChange : SightingForm -> FormChange -> SightingForm
+applyFormChange sf fc =
     let newFormState fs fc = 
         case fc of
           Count c -> { fs | count <- c }
           Species s -> { fs | species <- s}
     in 
-      case ms of 
-        Form sf ->
-            case sf of 
-              PendingAmend fs -> Form <| Amending (newFormState fs fc)
-              Amending fs -> Form <| Amending (newFormState fs fc)
-              JustSeen fs -> Form <| JustSeen (newFormState fs fc)
-        otherwise -> ms 
+      case sf of
+        PendingAmend fs -> Amending (newFormState fs fc)
+        Amending fs -> Amending (newFormState fs fc)
+        JustSeen fs -> JustSeen (newFormState fs fc)
  
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newModalState = Just <| Form <| JustSeen <| FormState m.nextId "" "" (toGeopoint m c) t
+    let newFormState = FormState m.nextId "" "" (toGeopoint m c) t
         nextNextId = m.nextId + 1
-    in { m | modalState <- newModalState, nextId <- nextNextId }
+    in { m | formState <- Just (JustSeen newFormState), nextId <- nextNextId }
 
 newZoom : Zoom -> Float -> Zoom
 newZoom z f =
@@ -170,7 +164,7 @@ applyZoom m f = { m | zoom <- newZoom m.zoom f }
 
 applyKeys : Model -> (Int, Int) -> Model
 applyKeys m k = 
-    case m.modalState of
+    case m.formState of
       Nothing -> applyDrag m k
       otherwise -> m
 
@@ -207,7 +201,7 @@ prepareToAmend m id =
               Amend s -> s.id == id
               Delete d -> False
         record = findLast pred m.recordings
-    in {m | modalState <- M.map Form (fromRecord record)}
+    in {m | formState <- fromRecord record}
 
 fromRecord : Maybe Recording -> Maybe SightingForm
 fromRecord record =
