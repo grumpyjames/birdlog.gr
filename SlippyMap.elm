@@ -48,7 +48,7 @@ port requestLocation = locationRequests.signal
 type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
 
 pack : List (Sequenced Recording) -> ReplicationPacket
-pack rs = Debug.crash "not ready yet"
+pack rs = ReplicationPacket 0 <| Http.string "not ready yet"
 
 postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
 postRecords addr rs =
@@ -141,8 +141,8 @@ toSighting sf =
         validate fs = (countOk fs) `Result.andThen` (speciesNonEmpty fs)
     in case sf of
          JustSeen fs -> Result.map New (validate fs)
-         Amending seq fs -> Result.map Amend (validate fs)
-         PendingAmend seq fs -> Result.map Amend (validate fs)
+         Amending seq fs -> Result.map (Amend seq) (validate fs)
+         PendingAmend seq fs -> Result.map (Amend seq) (validate fs)
 
 identity a = a
 
@@ -201,13 +201,12 @@ tick attrs moreStyle g =
     in div (attrs ++ [style (styles ++ moreStyle), Attr.class "tick"]) []
 
 -- consolidate records into sightings
--- really ought to return (Sequenced Sighting)
 sightings : List (Sequenced Recording) -> List (Sequenced Sighting)
 sightings rs = 
     let f r d = 
         case r.item of
           New s -> D.insert r.sequence (Sequenced r.sequence s) d
-          Amend s -> D.insert r.sequence (Sequenced r.sequence s) d
+          Amend seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
           Delete seq -> D.remove seq d
     in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
 
