@@ -3,6 +3,7 @@ module Model ( Events(..)
              , FormState
              , Model
              , Recording(..)
+             , ReplicationState(..)
              , Sequenced
              , Sighting
              , SightingForm(..)
@@ -69,6 +70,9 @@ type alias FormState =
     , time: Time 
     }
 
+type ReplicationState = ReplicatingSince Time
+                      | ReplicatedAt Time
+
 type alias Model = 
     { 
       hdpi : Bool
@@ -84,6 +88,7 @@ type alias Model =
     , nextSequence : Int
     -- records with sequence < than this have been synced with the server
     , highWaterMark : Int
+    , replicationState : ReplicationState
     }
 
 type alias Sighting =

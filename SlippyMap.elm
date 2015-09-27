@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), Sequenced, Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), ReplicationState(..), Sequenced, Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
@@ -30,6 +30,9 @@ import String
 import Task exposing (Task)
 import Time exposing (Time)
 import Window
+
+-- need a start time
+port time : Float
 
 -- graphical hacks
 port hdpi : Bool
@@ -113,7 +116,7 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0 0
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0 0 (ReplicatedAt time)
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -123,7 +126,6 @@ defaultTileSrc = mapBoxSource
 greenwich = GeoPoint 51.48 0.0        
 
 -- Signal graph and model update
-
 actions : S.Mailbox Events
 actions = S.mailbox StartingUp
 

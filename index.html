@@ -83,7 +83,8 @@ var myapp = Elm.fullscreen(Elm.SlippyMap,
                                initialWinX: window.innerWidth,
                                initialWinY: window.innerHeight,
                                location: null,
-                               locationError: null
+                               locationError: null,
+                               time: Date.now()
                            });
 
 function requestPosition()
