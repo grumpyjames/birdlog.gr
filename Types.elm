@@ -11,7 +11,6 @@ module Types (GeoPoint,
 
 import Time exposing (Time)
 
-
 type alias GeoPoint = 
     { 
       lat: Float

@@ -19,7 +19,8 @@ import Http
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
 import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (Options, onClick, on, onWithOptions, onMouseDown, targetValue)
-import Json.Decode as J exposing (Decoder, object2, int, value, (:=), fail)
+import Json.Encode as JS
+import Json.Decode as JD exposing (Decoder, (:=))
 import Keyboard
 import List as L
 import Maybe as M
@@ -47,12 +48,52 @@ port requestLocation = locationRequests.signal
 
 type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
 
+sghtJson : Sighting -> JS.Value
+sghtJson s = 
+    JS.object [ ("count", JS.int s.count)
+              , ("species", JS.string s.species)
+              , ("location", geoJson s.location)
+              , ("time", JS.float s.time)
+              ]
+
+typeNew : JS.Value
+typeNew = JS.object [ ("name", JS.string "New") ]
+
+typeRef : String -> Int -> JS.Value
+typeRef n seq = JS.object [ ("name", JS.string n)
+                          , ("refersTo", JS.object [("sequence", JS.int seq)])
+                          ]
+
+geoJson : GeoPoint -> JS.Value
+geoJson gp = JS.object [ ("lat", JS.float gp.lat)
+                       , ("lon", JS.float gp.lon)
+                       ]
+
+asJson : (Sequenced Recording) -> JS.Value
+asJson r = 
+    let nora typ seq item =
+        JS.object [ ("sequence", (JS.int seq))
+                  , ("type", typ)
+                  , ("item", item) 
+                  ]
+    in case r.item of 
+      New s -> 
+          nora typeNew r.sequence <| sghtJson s
+      Replace refSeq s -> 
+          nora (typeRef "Replace" refSeq) r.sequence <| sghtJson s
+      Delete refSeq -> 
+          nora (typeRef "Delete" refSeq) r.sequence <| JS.object []
+
 pack : List (Sequenced Recording) -> ReplicationPacket
-pack rs = ReplicationPacket 0 <| Http.string "not ready yet"
+pack rs = 
+    let encode rs = Http.string <| JS.encode 0 <| JS.list <| L.map asJson rs 
+    in case rs of
+      [] -> ReplicationPacket -1 Http.empty
+      (x :: xs) -> ReplicationPacket x.sequence (encode rs) 
 
 postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
 postRecords addr rs =
-    let http p = Http.post (J.succeed (HighWaterMark p.maxSequence)) "/records" p.body 
+    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/records" p.body 
     in http (pack rs) `Task.andThen` (S.send addr)
 
 replicationEvents : Signal (List (Sequenced Recording))
@@ -149,7 +190,7 @@ identity a = a
 modalMessage : S.Address (Events) -> Model -> String -> List Html
 modalMessage addr m message = 
     let dismissAddr = S.forwardTo addr (\_ -> DismissModal)
-        modalContent = div [] [text message, button [on "click" (J.succeed "") (\_ -> S.message addr (DismissModal))] [text "Ok..."]]
+        modalContent = div [] [text message, button [on "click" (JD.succeed "") (\_ -> S.message addr (DismissModal))] [text "Ok..."]]
     in [Ui.modal dismissAddr m.windowSize modalContent]
 
 -- unwrap the formstate outside
@@ -159,13 +200,13 @@ formLayers addr m sf =
         indicators g = [tick [] [] (cp `T.add` (2, 2)), tick [] [("color", "#33AA33")] cp]
         saw = text "Spotted: "
         dismissAddr = S.forwardTo addr (\_ -> DismissModal)
-        countDecoder = J.map Count targetValue
+        countDecoder = JD.map Count targetValue
         sendFormChange fc = S.message addr (SightingChange fc)
         count = input ((countVal sf) ++ [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 7",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange]) []
-        speciesDecoder = J.map Species targetValue
+        speciesDecoder = JD.map Species targetValue
         bird = input ((speciesVal sf) ++ [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange]) []
         sighting = Result.map RecordChange <| toSighting sf
-        decoder = J.customDecoder (J.succeed sighting) identity
+        decoder = JD.customDecoder (JD.succeed sighting) identity
         disabled = fold (\a -> True) (\b -> False) sighting
         deleteButton = delButton addr sf "Delete"
         submit = Ui.submitButton decoder (S.message addr) "Save" disabled
@@ -178,8 +219,8 @@ br = Html.br [] []
 delButton : S.Address (Events) -> SightingForm -> String -> List Html
 delButton addr sf title = 
     case sf of 
-      Amending seq _ -> [br, Ui.submitButton (J.succeed (RecordChange (Delete seq))) (S.message addr) title False]
-      PendingAmend seq _ -> [br, Ui.submitButton (J.succeed (RecordChange (Delete seq))) (S.message addr) title False]
+      Amending seq _ -> [br, Ui.submitButton (JD.succeed (RecordChange (Delete seq))) (S.message addr) title False]
+      PendingAmend seq _ -> [br, Ui.submitButton (JD.succeed (RecordChange (Delete seq))) (S.message addr) title False]
       otherwise -> []
 
 val : (FormState -> String) -> SightingForm -> List Attribute
@@ -212,7 +253,7 @@ sightings rs =
 
 records : S.Address (Events) -> Model -> List Html
 records addr model =
-    let amendAction seq = on "click" (J.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
+    let amendAction seq = on "click" (JD.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
     in L.map (\s -> tick [amendAction s.sequence] [] (fromGeopoint model s.item.location)) <| sightings model.records
 
 ons : S.Address (Events) -> Attribute
@@ -242,7 +283,7 @@ upC = rgb 248 248 248
 
 ourButton : List (String, Bool) -> (S.Address a) -> a -> String -> Html
 ourButton classes address msg txt = 
-    let events = [onClick, (\ad ms -> onWithOptions "touchend" Ui.stopEverything value (\_ -> Signal.message ad ms))]
+    let events = [onClick, (\ad ms -> onWithOptions "touchend" Ui.stopEverything JD.value (\_ -> Signal.message ad ms))]
     in button ((Attr.classList classes) :: (L.map (\e -> e address msg) events)) [text txt]
 
 -- lon min: -180
