@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, Model, Record, Recording(..), Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Styles exposing (..)
 import Tile
@@ -110,12 +110,12 @@ toSighting sf =
         speciesNonEmpty fs c = 
             if (String.isEmpty fs.species)
             then (Result.Err "Species not set")
-            else (Result.Ok (Sighting fs.sequence c fs.species fs.location fs.time))
+            else (Result.Ok (Sighting c fs.species fs.location fs.time))
         validate fs = (countOk fs) `Result.andThen` (speciesNonEmpty fs)
     in case sf of
          JustSeen fs -> Result.map New (validate fs)
-         Amending fs -> Result.map Amend (validate fs)
-         PendingAmend fs -> Result.map Amend (validate fs)
+         Amending seq fs -> Result.map Amend (validate fs)
+         PendingAmend seq fs -> Result.map Amend (validate fs)
 
 identity a = a
 
@@ -151,14 +151,14 @@ br = Html.br [] []
 delButton : S.Address (Events) -> SightingForm -> String -> List Html
 delButton addr sf title = 
     case sf of 
-      Amending fs -> [br, Ui.submitButton (J.succeed (RecordChange (Delete fs.sequence))) (S.message addr) title False]
-      PendingAmend pa -> [br, Ui.submitButton (J.succeed (RecordChange (Delete pa.sequence))) (S.message addr) title False]
+      Amending seq _ -> [br, Ui.submitButton (J.succeed (RecordChange (Delete seq))) (S.message addr) title False]
+      PendingAmend seq _ -> [br, Ui.submitButton (J.succeed (RecordChange (Delete seq))) (S.message addr) title False]
       otherwise -> []
 
 val : (FormState -> String) -> SightingForm -> List Attribute
 val extractor sf = 
     case sf of
-      PendingAmend fs -> [Attr.value (extractor fs)]
+      PendingAmend seq fs -> [Attr.value (extractor fs)]
       otherwise -> []
 
 speciesVal : SightingForm -> List Attribute
@@ -174,19 +174,20 @@ tick attrs moreStyle g =
     in div (attrs ++ [style (styles ++ moreStyle), Attr.class "tick"]) []
 
 -- consolidate records into sightings
-sightings : List Recording -> List Sighting
+-- really ought to return (Sequenced Sighting)
+sightings : List Record -> List (Int, Sighting)
 sightings rs = 
     let f r d = 
-        case r of
-          New s -> D.insert s.sequence s d
-          Amend s -> D.insert s.sequence s d
-          Delete sequence -> D.remove sequence d
+        case r.recording of
+          New s -> D.insert r.sequence (r.sequence, s) d
+          Amend s -> D.insert r.sequence (r.sequence, s) d
+          Delete seq -> D.remove seq d
     in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
 
 records : S.Address (Events) -> Model -> List Html
 records addr model =
-    let amendAction s = on "click" (J.succeed s.sequence) (\sequence -> S.message addr (AmendRecord sequence)) 
-    in L.map (\s -> tick [amendAction s] [] (fromGeopoint model s.location)) <| sightings model.recordings
+    let amendAction seq = on "click" (J.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
+    in L.map (\(seq, s) -> tick [amendAction seq] [] (fromGeopoint model s.location)) <| sightings model.records
 
 ons : S.Address (Events) -> Attribute
 ons add = 

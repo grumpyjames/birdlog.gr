@@ -2,6 +2,7 @@ module Model ( Events(..)
              , FormChange(..)
              , FormState
              , Model
+             , Record
              , Recording(..)
              , Sighting
              , SightingForm(..)
@@ -17,6 +18,12 @@ import Debug
 import List as L
 import Maybe as M
 import Time exposing (Time)
+
+type alias Record = 
+    {
+      sequence: Int
+    , recording: Recording
+    }
 
 type Recording = New Sighting
                | Amend Sighting
@@ -42,22 +49,21 @@ type FormChange = Species String
                 | Count String
 
 
-type SightingForm = PendingAmend FormState
+type SightingForm = PendingAmend Int FormState
                   | JustSeen FormState
-                  | Amending FormState
+                  | Amending Int FormState
                   | Deleting FormState
 
 state : SightingForm -> FormState
 state sf = 
     case sf of
-      PendingAmend fs -> fs
+      PendingAmend seq fs -> fs
       JustSeen fs -> fs
-      Amending fs -> fs
+      Amending seq fs -> fs
 
 type alias FormState =
     {
-      sequence: Int
-    , count: String
+      count: String
     , species: String
     , location: GeoPoint
     , time: Time 
@@ -72,7 +78,7 @@ type alias Model =
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
     , formState : Maybe SightingForm
-    , recordings : List Recording
+    , records : List Record
     , locationProgress : Bool
     , message : Maybe String
     , nextSequence : Int
@@ -82,8 +88,7 @@ type alias Model =
 
 type alias Sighting =
     {
-      sequence: Int
-    , count: Int
+      count: Int
     , species: String
     , location: GeoPoint
     -- millis
@@ -127,10 +132,13 @@ maybeUpdateZoom m (readyLevel, progressIncrement) =
 
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
-    { m
-    | recordings <- (r :: m.recordings)
-    , formState <- Nothing
-    }
+    let newSequence = m.nextSequence + 1
+    in
+      { m
+      | records <- (Record m.nextSequence r) :: m.records
+      , formState <- Nothing
+      , nextSequence <- newSequence
+      }
 
 applyFormChange : SightingForm -> FormChange -> SightingForm
 applyFormChange sf fc =
@@ -140,15 +148,14 @@ applyFormChange sf fc =
           Species s -> { fs | species <- s}
     in 
       case sf of
-        PendingAmend fs -> Amending (newFormState fs fc)
-        Amending fs -> Amending (newFormState fs fc)
+        PendingAmend seq fs -> Amending seq (newFormState fs fc)
+        Amending seq fs -> Amending seq (newFormState fs fc)
         JustSeen fs -> JustSeen (newFormState fs fc)
  
 applyClick : Model -> Time -> (Int, Int) -> Model
 applyClick m t c =
-    let newFormState = FormState m.nextSequence "" "" (toGeopoint m c) t
-        nextNextSequence = m.nextSequence + 1
-    in { m | formState <- Just (JustSeen newFormState), nextSequence <- nextNextSequence }
+    let newFormState = FormState "" "" (toGeopoint m c) t
+    in { m | formState <- Just (JustSeen newFormState) }
 
 newZoom : Zoom -> Float -> Zoom
 newZoom z f =
@@ -196,23 +203,20 @@ applyTouchEvent t m e =
           applyClick m t pn
 
 prepareToAmend : Model -> Int -> Model
-prepareToAmend m sequence =
-    let pred r =
-            case r of 
-              New s -> s.sequence == sequence
-              Amend s -> s.sequence == sequence
-              Delete d -> False
-        record = findLast pred m.recordings
+prepareToAmend m seq =
+    let pred r = (r.sequence == seq)
+        record = findLast pred m.records
     in {m | formState <- fromRecord record}
 
-fromRecord : Maybe Recording -> Maybe SightingForm
-fromRecord record =
-    let s r = 
-        case r of 
-          New sighting -> sighting
-          Amend sighting -> sighting
-        fs s = FormState s.sequence (toString s.count) s.species s.location s.time
-    in M.map PendingAmend <| M.map fs <| M.map s record
+toFormState : Record -> Maybe SightingForm
+toFormState r = 
+    case r.recording of 
+      Delete seq -> Nothing
+      New s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
+      Amend s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
+
+fromRecord : Maybe Record -> Maybe SightingForm
+fromRecord record = record `M.andThen` toFormState
 
 findLast : (a -> Bool) -> List a -> Maybe a
 findLast pred l = 
