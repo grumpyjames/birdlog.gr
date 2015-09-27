@@ -25,7 +25,7 @@ type alias Sequenced a =
     }
 
 type Recording = New Sighting
-               | Amend Int Sighting
+               | Replace Int Sighting
                | Delete Int
 
 type Events = ZoomChange Float 
@@ -214,7 +214,7 @@ toFormState r =
     case r.item of 
       Delete seq -> Nothing
       New s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
-      Amend seq s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
+      Replace seq s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
 
 fromRecord : Maybe (Sequenced Recording) -> Maybe SightingForm
 fromRecord record = record `M.andThen` toFormState

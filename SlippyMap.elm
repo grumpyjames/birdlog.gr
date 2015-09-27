@@ -141,8 +141,8 @@ toSighting sf =
         validate fs = (countOk fs) `Result.andThen` (speciesNonEmpty fs)
     in case sf of
          JustSeen fs -> Result.map New (validate fs)
-         Amending seq fs -> Result.map (Amend seq) (validate fs)
-         PendingAmend seq fs -> Result.map (Amend seq) (validate fs)
+         Amending seq fs -> Result.map (Replace seq) (validate fs)
+         PendingAmend seq fs -> Result.map (Replace seq) (validate fs)
 
 identity a = a
 
@@ -206,7 +206,7 @@ sightings rs =
     let f r d = 
         case r.item of
           New s -> D.insert r.sequence (Sequenced r.sequence s) d
-          Amend seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
+          Replace seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
           Delete seq -> D.remove seq d
     in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
 
