@@ -6,6 +6,7 @@ import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
 import Model exposing (Events(..), FormChange(..), FormState, Model, Recording(..), ReplicationState(..), Sequenced, Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
+import Results as Rs
 import Styles exposing (..)
 import Tile
 import Tuple as T
@@ -24,7 +25,7 @@ import Json.Decode as JD exposing (Decoder, (:=))
 import Keyboard
 import List as L
 import Maybe as M
-import Result exposing (Result(..))
+import Result as R
 import Signal as S
 import String
 import Task exposing (Task)
@@ -191,18 +192,6 @@ toReplicate m =
     let pred r = r.sequence > m.highWaterMark 
     in L.filter pred m.records 
 
-mapError : (e1 -> e2) -> Result e1 a -> Result e2 a
-mapError g r = 
-    case r of
-      Ok o -> Ok o
-      Err e -> Err (g e)
-
-fold : (e -> c) -> (o -> c) -> Result e o -> c
-fold f g r = 
-    case r of
-      Ok o -> g o
-      Err e -> f e
-
 spotLayers : S.Address (Events) -> Model -> List Html
 spotLayers addr model =
     case model.message of
@@ -211,16 +200,16 @@ spotLayers addr model =
  
 toSighting : SightingForm -> Result String Recording
 toSighting sf =
-    let countOk fs = (mapError (\a -> "count must be positive") (String.toInt fs.count)) `Result.andThen` (\i -> if i > 0 then (Result.Ok i) else (Result.Err "count must be positive"))
+    let countOk fs = (Rs.mapError (\a -> "count must be positive") (String.toInt fs.count)) `R.andThen` (\i -> if i > 0 then (Ok i) else (Err "count must be positive"))
         speciesNonEmpty fs c = 
             if (String.isEmpty fs.species)
-            then (Result.Err "Species not set")
-            else (Result.Ok (Sighting c fs.species fs.location fs.time))
-        validate fs = (countOk fs) `Result.andThen` (speciesNonEmpty fs)
+            then (R.Err "Species not set")
+            else (R.Ok (Sighting c fs.species fs.location fs.time))
+        validate fs = (countOk fs) `R.andThen` (speciesNonEmpty fs)
     in case sf of
-         JustSeen fs -> Result.map New (validate fs)
-         Amending seq fs -> Result.map (Replace seq) (validate fs)
-         PendingAmend seq fs -> Result.map (Replace seq) (validate fs)
+         JustSeen fs -> R.map New (validate fs)
+         Amending seq fs -> R.map (Replace seq) (validate fs)
+         PendingAmend seq fs -> R.map (Replace seq) (validate fs)
 
 identity a = a
 
@@ -242,12 +231,12 @@ formLayers addr m sf =
         count = input ((countVal sf) ++ [ Attr.id "count", Attr.type' "number", Attr.placeholder "Count, e.g 7",  on "change" countDecoder sendFormChange, on "input" countDecoder sendFormChange]) []
         speciesDecoder = JD.map Species targetValue
         bird = input ((speciesVal sf) ++ [ Attr.id "species", Attr.type' "text", Attr.placeholder "Species, e.g Puffin", on "input" speciesDecoder sendFormChange]) []
-        sighting = Result.map RecordChange <| toSighting sf
+        sighting = R.map RecordChange <| toSighting sf
         decoder = JD.customDecoder (JD.succeed sighting) identity
-        disabled = fold (\a -> True) (\b -> False) sighting
+        disabled = Rs.fold (\a -> True) (\b -> False) sighting
         deleteButton = delButton addr sf "Delete"
         submit = Ui.submitButton decoder (S.message addr) "Save" disabled
-        err s = fold (\e -> [(div [Attr.class "error"] [text ("e: " ++ e)])]) (\b -> []) s
+        err s = Rs.fold (\e -> [(div [Attr.class "error"] [text ("e: " ++ e)])]) (\b -> []) s
         theForm = form [style [("opacity", "0.8")]] ([saw, br, count, br, bird, br] ++ (err sighting) ++ [submit] ++ deleteButton)
     in indicators (state sf).location ++ [Ui.modal dismissAddr m.windowSize theForm]
 
