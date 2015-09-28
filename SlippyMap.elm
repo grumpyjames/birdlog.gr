@@ -130,6 +130,9 @@ greenwich = GeoPoint 51.48 0.0
 actions : S.Mailbox Events
 actions = S.mailbox StartingUp
 
+devnull : S.Mailbox ()
+devnull = S.mailbox ()
+
 keyState : Signal (Int, Int)
 keyState =
     let toTuple a = (a.x, a.y)
@@ -153,7 +156,7 @@ view model =
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controls = buttons model [style absolute] actions.address locationRequests.address
-        spottedLayers = spotLayers actions.address model
+        spottedLayers = spotLayers actions.address locationRequests.address model
         recentRecords = records actions.address model
         clickCatcher = div (index.attr ++ [styles]) []
         possiblyReplicate = considerReplication actions.address model
@@ -192,13 +195,13 @@ toReplicate m =
     let pred r = r.sequence > m.highWaterMark 
     in L.filter pred m.records 
 
-spotLayers : S.Address (Events) -> Model -> List Html
-spotLayers addr model =
+spotLayers : S.Address (Events) -> S.Address () -> Model -> List Html
+spotLayers addr lrAddr model =
     case model.message of
       Just modalState -> 
           case modalState of
             Message message -> modalMessage addr model message
-            Instructions -> []
+            Instructions -> modalInstructions model addr lrAddr
       Nothing -> M.withDefault [] <| M.map (\fs -> formLayers addr model fs) model.formState 
  
 toSighting : SightingForm -> Result String Recording
@@ -215,6 +218,47 @@ toSighting sf =
          PendingAmend seq fs -> R.map (Replace seq) (validate fs)
 
 identity a = a
+
+type alias Strings = { welcome: String 
+                     , usage: String
+                     , map: String
+                     , drag: String
+                     , zoom: String
+                     , click: String
+                     }
+
+english : Strings
+english = 
+    Strings 
+    "Welcome to birdlog.gr."
+    "Use this site to log birds as you see them"
+    "Tap this button to move to your current location."
+    "Click (or touch) and drag to move the map around" 
+    "Use these buttons to zoom in and out"
+    "Double click (or tap) the map to record a sighting"
+    
+modalInstructions : Model -> S.Address (Events) -> S.Address () -> List Html
+modalInstructions m addr lrAddr = 
+    let modalBody = div [] 
+                    [ text english.welcome
+                    , br
+                    , br
+                    , text english.usage
+                    , br
+                    , locationButton m.locationProgress lrAddr
+                    , text english.map
+                    , br
+                    , text english.drag
+                    , br
+                    , zoomIn addr
+                    , zoomOut addr
+                    , text english.zoom
+                    , br
+                    , text english.click
+                    ]
+-- ourButton [("circ", True), ("zoom", True)] address (ZoomChange 1) "+"
+    in [Ui.modal (S.forwardTo addr (\_ -> DismissModal)) m.windowSize modalBody] 
+    
 
 modalMessage : S.Address (Events) -> Model -> String -> List Html
 modalMessage addr m message = 
