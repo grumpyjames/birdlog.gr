@@ -158,10 +158,21 @@ view model =
         possiblyReplicate = considerReplication actions.address model
     in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
 
+replicationSpinner : List Attribute -> Html
+replicationSpinner attrs = 
+    Html.img 
+            (  Attr.src "/ajax-loader.gif"
+            :: Attr.style [("position", "absolute"), ("right", "4px"), ("bottom", "4px")]
+            :: attrs
+            )
+            []
+
 considerReplication : (S.Address Events) -> Model -> List Html
 considerReplication addr m =
     case m.replicationState of
-      ReplicatingSince t -> []
+      ReplicatingSince t -> [
+       replicationSpinner []
+      ]
       ReplicatedAt t ->
           if t + 10000 < m.lastPulseTime
           then 
@@ -169,11 +180,9 @@ considerReplication addr m =
               in if (L.isEmpty toSend)
                  then []
                  else [
-                  Html.img 
-                          [ Attr.src "/ajax-loader.gif"
-                          , on "load" (JD.succeed (Replicate toSend)) (S.message addr)
-                          ] 
-                          []
+                  replicationSpinner [
+                   on "load" (JD.succeed (Replicate toSend)) (S.message addr)
+                  ]             
                  ]
           else []
 
