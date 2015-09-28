@@ -46,6 +46,7 @@ type Events = ZoomChange Float
             | LayerReady (Int, Float)
             | Replicate (List (Sequenced Recording))
             | HighWaterMark Int
+            | Pulse Time
 
 type FormChange = Species String
                 | Count String
@@ -86,9 +87,10 @@ type alias Model =
     , locationProgress : Bool
     , message : Maybe String
     , nextSequence : Int
-    -- records with sequence < than this have been synced with the server
+    -- records with sequence <= than this have been synced with the server
     , highWaterMark : Int
     , replicationState : ReplicationState
+    , lastPulseTime : Time
     }
 
 type alias Sighting =
@@ -117,7 +119,8 @@ applyEvent (t, e) m =
       DismissModal -> { m | message <- Nothing, formState <- Nothing }
       AmendRecord sequence -> prepareToAmend m sequence
       LayerReady lr -> maybeUpdateZoom m lr
-      HighWaterMark hwm -> { m | highWaterMark <- hwm }
+      HighWaterMark hwm -> { m | highWaterMark <- hwm, replicationState <- ReplicatedAt t }
+      Pulse t -> { m | lastPulseTime <- t }
       otherwise -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b

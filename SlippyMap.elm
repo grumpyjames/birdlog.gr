@@ -116,7 +116,7 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0 0 (ReplicatedAt time)
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False Nothing 0 0 (ReplicatedAt time) time
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -142,7 +142,8 @@ events =
         ls = S.map LocationReceived location
         les = S.map LocationRequestError locationError
         lrs = S.sampleOn locationRequests.signal (S.constant LocationRequestStarted)
-    in Time.timestamp <| S.mergeMany [actions.signal, lrs, les, ls, win, keys, ot]
+        pulses = S.map Pulse (Time.every 2000)
+    in Time.timestamp <| S.mergeMany [actions.signal, lrs, les, ls, win, keys, ot, pulses]
 
 -- view concerns
 view model = 
@@ -153,8 +154,33 @@ view model =
         controls = buttons model [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address model
         recentRecords = records actions.address model
-        clickCatcher = div (index.attr ++ [styles]) [] 
-    in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers)
+        clickCatcher = div (index.attr ++ [styles]) []
+        possiblyReplicate = considerReplication actions.address model
+    in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
+
+considerReplication : (S.Address Events) -> Model -> List Html
+considerReplication addr m =
+    case m.replicationState of
+      ReplicatingSince t -> []
+      ReplicatedAt t ->
+          if t + 10000 < m.lastPulseTime
+          then 
+              let toSend = toReplicate m 
+              in if (L.isEmpty toSend)
+                 then []
+                 else [
+                  Html.img 
+                          [ Attr.src "/ajax-loader.gif"
+                          , on "load" (JD.succeed (Replicate toSend)) (S.message addr)
+                          ] 
+                          []
+                 ]
+          else []
+
+toReplicate : Model -> (List (Sequenced Recording))
+toReplicate m = 
+    let pred r = r.sequence > m.highWaterMark 
+    in L.filter pred m.records 
 
 mapError : (e1 -> e2) -> Result e1 a -> Result e2 a
 mapError g r = 
@@ -251,7 +277,7 @@ sightings rs =
           New s -> D.insert r.sequence (Sequenced r.sequence s) d
           Replace seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
           Delete seq -> D.remove seq d
-    in D.values <| L.foldr f D.empty (Debug.log "recordings" rs)
+    in D.values <| L.foldr f D.empty rs
 
 records : S.Address (Events) -> Model -> List Html
 records addr model =
