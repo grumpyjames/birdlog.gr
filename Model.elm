@@ -1,6 +1,7 @@
 module Model ( Events(..)
              , FormChange(..)
              , FormState
+             , ModalMessage(..)
              , Model
              , Recording(..)
              , ReplicationState(..)
@@ -74,6 +75,9 @@ type alias FormState =
 type ReplicationState = ReplicatingSince Time
                       | ReplicatedAt Time
 
+type ModalMessage = Message String
+                  | Instructions
+
 type alias Model = 
     { 
       hdpi : Bool
@@ -85,7 +89,7 @@ type alias Model =
     , formState : Maybe SightingForm
     , records : List (Sequenced Recording)
     , locationProgress : Bool
-    , message : Maybe String
+    , message : Maybe ModalMessage 
     , nextSequence : Int
     -- records with sequence <= than this have been synced with the server
     , highWaterMark : Int
@@ -115,7 +119,7 @@ applyEvent (t, e) m =
       WindowSize w -> {m | windowSize <- w}
       LocationRequestStarted -> {m | locationProgress <- True}
       LocationReceived l -> applyMaybe (\m (lat, lon) -> {m | centre <- (GeoPoint lat lon), locationProgress <- False}) m l
-      LocationRequestError le -> {m | message <- le, locationProgress <- False}
+      LocationRequestError le -> {m | message <- (M.map Message le), locationProgress <- False}
       DismissModal -> { m | message <- Nothing, formState <- Nothing }
       AmendRecord sequence -> prepareToAmend m sequence
       LayerReady lr -> maybeUpdateZoom m lr
