@@ -255,15 +255,20 @@ modalInstructions m addr lrAddr =
                     , text english.zoom
                     , br
                     , text english.click
+                    , br
+                    , dismissButton addr "Ok, got it..."
                     ]
 -- ourButton [("circ", True), ("zoom", True)] address (ZoomChange 1) "+"
     in [Ui.modal (S.forwardTo addr (\_ -> DismissModal)) m.windowSize modalBody] 
     
+dismissButton : S.Address (Events) -> String -> Html
+dismissButton addr txt = 
+    button [on "click" (JD.succeed "") (\_ -> S.message addr (DismissModal))] [text txt]
 
 modalMessage : S.Address (Events) -> Model -> String -> List Html
 modalMessage addr m message = 
     let dismissAddr = S.forwardTo addr (\_ -> DismissModal)
-        modalContent = div [] [text message, button [on "click" (JD.succeed "") (\_ -> S.message addr (DismissModal))] [text "Ok..."]]
+        modalContent = div [] [text message, dismissButton addr "Ok..."]
     in [Ui.modal dismissAddr m.windowSize modalContent]
 
 -- unwrap the formstate outside
