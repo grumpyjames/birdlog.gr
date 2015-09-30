@@ -4,7 +4,7 @@ import ArcGIS exposing (arcGIS)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, Recording(..), ReplicationState(..), Sequenced, Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, Recording(..), ReplicationState(..), Sequenced, SessionState(..), Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Results as Rs
 import Styles exposing (..)
@@ -117,7 +117,7 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) 0 0 (ReplicatedAt time) time
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) 0 0 (ReplicatedAt time) time NotLoggedIn
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants

@@ -6,6 +6,7 @@ module Model ( Events(..)
              , Recording(..)
              , ReplicationState(..)
              , Sequenced
+             , SessionState(..)
              , Sighting
              , SightingForm(..)
              , applyEvent
@@ -78,6 +79,9 @@ type ReplicationState = ReplicatingSince Time
 type ModalMessage = Message String
                   | Instructions
 
+type SessionState = NotLoggedIn
+                  | LoggedInUser String
+
 type alias Model = 
     { 
       hdpi : Bool
@@ -95,6 +99,7 @@ type alias Model =
     , highWaterMark : Int
     , replicationState : ReplicationState
     , lastPulseTime : Time
+    , sessionState : SessionState
     }
 
 type alias Sighting =
