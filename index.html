@@ -104,7 +104,8 @@ function requestPosition()
             } else {
                 myapp.ports.locationError.send("A completely unexpected error happened while trying to ascertain your location.");
             }
-        }
+        },
+        { timeout: 5000 }
     );
 }
 
