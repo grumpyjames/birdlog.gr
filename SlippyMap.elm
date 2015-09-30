@@ -48,8 +48,12 @@ locationRequests = S.mailbox ()
 port requestLocation : Signal ()
 port requestLocation = locationRequests.signal
 
--- http replication
+-- session management
+port initialLoginState : Task Http.Error ()
+port initialLoginState = 
+    Http.get ("nick" := JD.string) "/session" `Task.andThen` (\nick -> S.send actions.address (LoggedIn nick))
 
+-- http replication
 type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
 
 sghtJson : Sighting -> JS.Value
@@ -230,7 +234,7 @@ type alias Strings = { welcome: String
 english : Strings
 english = 
     Strings 
-    "Welcome to birdlog.gr."
+    "Welcome to birdlog.gr"
     "Use this site to log birds as you see them"
     "Tap this button to move to your current location."
     "Click (or touch) and drag to move the map around" 
@@ -239,8 +243,12 @@ english =
     
 modalInstructions : Model -> S.Address (Events) -> S.Address () -> List Html
 modalInstructions m addr lrAddr = 
-    let modalBody = div [] 
-                    [ text english.welcome
+    let welcomeMsg = 
+            case m.sessionState of
+              NotLoggedIn -> english.welcome
+              LoggedInUser nickname -> english.welcome ++ ", " ++ nickname
+        modalBody = div [] 
+                    [ text welcomeMsg
                     , br
                     , br
                     , text english.usage

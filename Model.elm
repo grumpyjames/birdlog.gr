@@ -49,6 +49,7 @@ type Events = ZoomChange Float
             | Replicate (List (Sequenced Recording))
             | HighWaterMark Int
             | Pulse Time
+            | LoggedIn String
 
 type FormChange = Species String
                 | Count String
@@ -130,6 +131,7 @@ applyEvent (t, e) m =
       LayerReady lr -> maybeUpdateZoom m lr
       HighWaterMark hwm -> { m | highWaterMark <- hwm, replicationState <- ReplicatedAt t }
       Pulse t -> { m | lastPulseTime <- t }
+      LoggedIn nick -> { m | sessionState <- LoggedInUser nick }
       otherwise -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
