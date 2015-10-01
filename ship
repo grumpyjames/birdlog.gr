@@ -1,9 +1,6 @@
 #!/bin/bash
 
 elm-make SlippyMap.elm
-cp elm.js ../grumpyjames.github.io
-cp index.html ../grumpyjames.github.io
-cd ../grumpyjames.github.io
-git commit -a -m "$1"
-git push origin master
-cd -
+cp elm.js ../birdlog.gr/
+cp index.html ../birdlog.gr/
+cp ajax-loader.gif ../birdlog.gr/

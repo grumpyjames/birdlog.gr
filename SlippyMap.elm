@@ -101,8 +101,8 @@ pack rs =
 
 postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
 postRecords addr rs =
-    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/records" p.body 
-    in http (pack rs) `Task.andThen` (S.send addr)
+    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/records" p.body        
+    in if (L.isEmpty rs) then Task.succeed () else http (pack rs) `Task.andThen` (S.send addr)
 
 replicationEvents : Signal (List (Sequenced Recording))
 replicationEvents = 
@@ -245,11 +245,15 @@ modalInstructions : Model -> S.Address (Events) -> S.Address () -> List Html
 modalInstructions m addr lrAddr = 
     let welcomeMsg = 
             case m.sessionState of
-              NotLoggedIn -> english.welcome
-              LoggedInUser nickname -> english.welcome ++ ", " ++ nickname
+              NotLoggedIn -> [ text english.welcome
+                             , br
+                             , Html.a [Attr.href "/login"] [text "Login"]
+                             , text " to keep your recordings safe"
+                             ]
+              LoggedInUser nickname -> [ text (english.welcome ++ ", " ++ nickname) ]
         modalBody = div [] 
-                    [ text welcomeMsg
-                    , br
+                    (welcomeMsg ++ 
+                    [ br
                     , br
                     , text english.usage
                     , br
@@ -265,7 +269,7 @@ modalInstructions m addr lrAddr =
                     , text english.click
                     , br
                     , dismissButton addr "Ok, got it..."
-                    ]
+                    ])
 -- ourButton [("circ", True), ("zoom", True)] address (ZoomChange 1) "+"
     in [Ui.modal (S.forwardTo addr (\_ -> DismissModal)) m.windowSize modalBody] 
     
