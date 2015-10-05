@@ -51,7 +51,9 @@ port requestLocation = locationRequests.signal
 -- session management
 port initialLoginState : Task Http.Error ()
 port initialLoginState = 
-    Http.get ("nick" := JD.string) "/session" `Task.andThen` (\nick -> S.send actions.address (LoggedIn nick))
+    let decoder = JD.object2 (,) ("nick" := JD.string) ("lastSequence" := JD.int)
+        sendAction (nick, lastSeq) = S.send actions.address <| LoggedIn nick lastSeq
+    in Http.get decoder "/session" `Task.andThen` sendAction
 
 -- http replication
 type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
