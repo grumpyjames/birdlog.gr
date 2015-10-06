@@ -131,7 +131,7 @@ applyEvent (t, e) m =
       LayerReady lr -> maybeUpdateZoom m lr
       HighWaterMark hwm -> { m | highWaterMark <- hwm, replicationState <- ReplicatedAt t }
       Pulse t -> { m | lastPulseTime <- t }
-      LoggedIn nick lastSeq rec -> { m | sessionState <- LoggedInUser nick, nextSequence <- 1 + lastSeq, records <- rec }
+      LoggedIn nick lastSeq rec -> { m | sessionState <- LoggedInUser nick, nextSequence <- 1 + lastSeq, records <- rec, highWaterMark <- lastSeq }
       otherwise -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
