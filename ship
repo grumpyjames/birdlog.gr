@@ -1,6 +1,6 @@
 #!/bin/bash
 
-elm-make SlippyMap.elm
+elm-make src/elm/SlippyMap.elm
 cp elm.js ../birdlog.gr/
 cp index.html ../birdlog.gr/
 cp ajax-loader.gif ../birdlog.gr/
