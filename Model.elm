@@ -48,6 +48,7 @@ type Events = ZoomChange Float
             | LayerReady (Int, Float)
             | Replicate (List (Sequenced Recording))
             | HighWaterMark Int
+            | ReplicationFailed
             | Pulse Time
             | LoggedIn String Int (List (Sequenced Recording))
 
@@ -74,7 +75,8 @@ type alias FormState =
     , time: Time 
     }
 
-type ReplicationState = ReplicatingSince Time
+type ReplicationState = Replicating
+                      | TriggerReplication (List (Sequenced Recording))
                       | ReplicatedAt Time
 
 type ModalMessage = Message String
@@ -99,7 +101,6 @@ type alias Model =
     -- records with sequence <= than this have been synced with the server
     , highWaterMark : Int
     , replicationState : ReplicationState
-    , lastPulseTime : Time
     , sessionState : SessionState
     }
 
@@ -112,9 +113,30 @@ type alias Sighting =
     , time : Time
     }
 
+toReplicate : Model -> (List (Sequenced Recording))
+toReplicate m = 
+    let pred r = r.sequence > m.highWaterMark 
+    in L.filter pred m.records 
+
+applyTime : Model -> Time -> Model
+applyTime oldM t = 
+    case oldM.replicationState of
+      ReplicatedAt time -> 
+          if time + 5000 < t 
+          then 
+              let payload = toReplicate oldM
+              in if (L.isEmpty payload) 
+                 then { oldM | replicationState <- ReplicatedAt t }
+                 else { oldM | replicationState <- TriggerReplication payload }
+          else oldM
+      TriggerReplication _ -> { oldM | replicationState <- Replicating }
+      otherwise -> oldM
+                            
 applyEvent : (Time, Events) -> Model -> Model
-applyEvent (t, e) m = 
-    case e of
+applyEvent (t, e) oldM =
+    -- allow only a single frame of 'TriggerReplication'
+    let m = applyTime oldM t
+    in case e of
       ZoomChange f -> applyZoom m f
       ArrowPress ap -> applyKeys m ap 
       Click c -> applyClick m t c
@@ -130,7 +152,8 @@ applyEvent (t, e) m =
       AmendRecord sequence -> prepareToAmend m sequence
       LayerReady lr -> maybeUpdateZoom m lr
       HighWaterMark hwm -> { m | highWaterMark <- hwm, replicationState <- ReplicatedAt t }
-      Pulse t -> { m | lastPulseTime <- t }
+      ReplicationFailed -> { m | replicationState <- ReplicatedAt t }
+      Pulse t -> m
       LoggedIn nick lastSeq rec -> { m | sessionState <- LoggedInUser nick, nextSequence <- 1 + lastSeq, records <- rec, highWaterMark <- lastSeq }
       otherwise -> m
 

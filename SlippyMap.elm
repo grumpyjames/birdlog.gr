@@ -133,7 +133,9 @@ pack rs =
 postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
 postRecords addr rs =
     let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/records" p.body        
-    in if (L.isEmpty rs) then Task.succeed () else http (pack rs) `Task.andThen` (S.send addr)
+    in if (L.isEmpty rs) 
+       then Task.succeed () 
+       else http (pack rs) `Task.andThen` (S.send addr) `Task.onError` (\err -> S.send addr ReplicationFailed)
 
 replicationEvents : Signal (List (Sequenced Recording))
 replicationEvents = 
@@ -152,7 +154,7 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) 0 -1 (ReplicatedAt time) time NotLoggedIn
+        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) 0 -1 (ReplicatedAt time) NotLoggedIn
     in S.map view (S.foldp applyEvent initialModel events)
 
 -- a few useful constants
@@ -209,26 +211,10 @@ replicationSpinner attrs =
 considerReplication : (S.Address Events) -> Model -> List Html
 considerReplication addr m =
     case m.replicationState of
-      ReplicatingSince t -> [
-       replicationSpinner []
-      ]
-      ReplicatedAt t ->
-          if t + 10000 < m.lastPulseTime
-          then 
-              let toSend = toReplicate m 
-              in if (L.isEmpty toSend)
-                 then []
-                 else [
-                  replicationSpinner [
-                   on "load" (JD.succeed (Replicate toSend)) (S.message addr)
-                  ]             
-                 ]
-          else []
-
-toReplicate : Model -> (List (Sequenced Recording))
-toReplicate m = 
-    let pred r = r.sequence > m.highWaterMark 
-    in L.filter pred m.records 
+      Replicating -> [replicationSpinner []]
+      TriggerReplication payload ->
+        [replicationSpinner [on "load" (JD.succeed (Replicate payload)) (S.message addr)]]
+      ReplicatedAt t -> []
 
 spotLayers : S.Address (Events) -> S.Address () -> Model -> List Html
 spotLayers addr lrAddr model =
