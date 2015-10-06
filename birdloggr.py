@@ -156,9 +156,9 @@ class Session(webapp2.RequestHandler):
             self.response.status = 404
             
 app = webapp2.WSGIApplication([
-    ('/session', Session),
-    ('/login', Login),
-    ('/logout', Logout),
-    ('/hello', Greet),
-    ('/records', Records)
+    ('/api/session', Session),
+    ('/api/login', Login),
+    ('/api/logout', Logout),
+    ('/api/hello', Greet),
+    ('/api/records', Records)
 ], debug=True)

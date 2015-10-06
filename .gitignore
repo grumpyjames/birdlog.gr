@@ -3,3 +3,5 @@ cache/*
 elm-stuff/
 elm.js
 *.*~
+*.pyc
+index.yaml

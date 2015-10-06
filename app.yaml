@@ -4,21 +4,13 @@ api_version: 1
 threadsafe: true
 
 handlers:
-- url: /
-  static_files: index.html
-  upload: index.html
-
-- url: /index.html
-  static_files: index.html
-  upload: index.html
-
-- url: /elm.js
-  static_files: elm.js
-  upload: elm.js
-
-- url: /ajax-loader.gif
-  static_files: ajax-loader.gif
-  upload: ajax-loader.gif
-
-- url: /.*
+- url: /api/.*
   script: birdloggr.app
+
+- url: /(.)(.*)
+  static_files: resources/\1\2
+  upload: resources/(.*)
+
+- url: /
+  static_files: resources/index.html
+  upload: resources/index.html

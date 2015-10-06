@@ -82,7 +82,7 @@ type alias AlmostRecord =
 port initialLoginState : Task Http.Error ()
 port initialLoginState = 
     let decoder = JD.object3 LoggedIn ("nick" := JD.string) ("lastSequence" := JD.int) ("recent" := JD.list recordDecoder)
-    in Http.get decoder "/session" `Task.andThen` S.send actions.address
+    in Http.get decoder "/api/session" `Task.andThen` S.send actions.address
 
 -- http replication
 type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
@@ -132,7 +132,7 @@ pack rs =
 
 postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
 postRecords addr rs =
-    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/records" p.body        
+    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/api/records" p.body        
     in if (L.isEmpty rs) 
        then Task.succeed () 
        else http (pack rs) `Task.andThen` (S.send addr) `Task.onError` (\err -> S.send addr ReplicationFailed)
@@ -264,7 +264,7 @@ modalInstructions m addr lrAddr =
             case m.sessionState of
               NotLoggedIn -> [ text english.welcome
                              , br
-                             , Html.a [Attr.href "/login"] [text "Login"]
+                             , Html.a [Attr.href "/api/login"] [text "Login"]
                              , text " to keep your recordings safe"
                              ]
               LoggedInUser nickname -> [ text (english.welcome ++ ", " ++ nickname) ]
