@@ -34,9 +34,15 @@ type InnerEvent
     | TouchMove (List Touch)
     | TouchEnd
 
+type alias GestureState =
+    { lastTouches : List Touch
+    , movedSoFar : (Int, Int)
+    , moveEventFired : Bool
+    }
+
 type State
     = InDrag (Int, Int)
-    | InGesture (List Touch) Int
+    | InGesture GestureState
     | Clean
 
 type alias Metacarpal =
@@ -70,36 +76,45 @@ parse ie s =
       (MouseOut posn, _)
           -> (Clean, M.Nothing)
       (TouchStart ts, _)
-          -> (InGesture ts 0, M.Nothing)
-      (TouchMove newTs, InGesture oldTs moved)
-          -> parseTouchEvent moved newTs oldTs
+          -> (InGesture (GestureState ts (0, 0) False), M.Nothing)
+      (TouchMove newTs, InGesture gs)
+          -> parseTouchEvent gs newTs |> considerEvent
       (TouchMove newTs, _)
           -> (Clean, M.Nothing)
-      (TouchEnd, InGesture oldTouches moved)
-          -> (Clean, if moved > 25 then M.Nothing else M.map (\t -> LongPress t.position) (head oldTouches))
+      (TouchEnd, InGesture gs)
+          -> (Clean, if gs.moveEventFired then M.Nothing else M.map (\t -> LongPress t.position) (head gs.lastTouches))
       (TouchEnd, _)
           -> (Clean, M.Nothing)
       otherwise 
           -> (Clean, M.Nothing)
 
-parseTouchEvent : Int -> List Touch -> List Touch -> (State, Maybe Event)
-parseTouchEvent moved newTouches oldTouches = 
-    if ((length oldTouches == 1) && (length newTouches == 1)) 
-    then parseEvent moved newTouches oldTouches
-    else (InGesture newTouches moved, Nothing)
+flip (a, b) = (-a, -b)
 
-parseEvent : Int -> List Touch -> List Touch -> (State, Maybe Event)
-parseEvent moved oldTs newTs =
-    let matches = pairBy (\t -> t.id) oldTs newTs
-    in parseOne (InGesture oldTs) moved matches
+considerEvent : GestureState -> (State, Maybe Event)
+considerEvent gs =
+    -- throttle events; only send when there is a significant delta
+    if ((T.combine (+) <| T.map abs gs.movedSoFar) > 20)
+    then (InGesture (GestureState gs.lastTouches (0, 0) True), Just (Drag (flip gs.movedSoFar)))
+    else (InGesture gs, Nothing)
 
-parseOne : (Int -> State) -> Int -> List (Touch, Touch) -> (State, Maybe Event)
-parseOne f moved ts =
+parseTouchEvent : GestureState -> List Touch -> GestureState
+parseTouchEvent gs newTouches = 
+    if ((length gs.lastTouches == 1) && (length newTouches == 1)) 
+    then parseEvent gs newTouches
+    else { gs | lastTouches <- newTouches }
+
+parseEvent : GestureState -> List Touch -> GestureState
+parseEvent gs newTs =
+    let matches = pairBy (\t -> t.id) gs.lastTouches newTs
+    in parseOne {gs | lastTouches <- newTs} matches
+
+parseOne : GestureState -> List (Touch, Touch) -> GestureState
+parseOne gs ts =
     case ts of
       (p :: []) -> 
-          let dragEvent = ((snd p).position `T.subtract` (fst p).position)
-          in (f ((size dragEvent) + moved), Just <| Drag dragEvent)
-      otherwise -> (f moved, Nothing)
+          let newMsf = gs.movedSoFar `T.add` (snd p).position `T.subtract` (fst p).position
+          in { gs | movedSoFar <- newMsf }
+      otherwise -> gs
 
 size : (Int, Int) -> Int
 size (a, b) = (abs a) + (abs b)
