@@ -1,0 +1,24 @@
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /
+  static_files: index.html
+  upload: index.html
+
+- url: /index.html
+  static_files: index.html
+  upload: index.html
+
+- url: /elm.js
+  static_files: elm.js
+  upload: elm.js
+
+- url: /ajax-loader.gif
+  static_files: ajax-loader.gif
+  upload: ajax-loader.gif
+
+- url: /.*
+  script: birdloggr.app
