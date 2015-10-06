@@ -6,6 +6,7 @@ import Model exposing (Model)
 import Tuple as T
 import Types exposing (GeoPoint, MapState, Position, Tile, TileSource, TileUrl, Zoom(..))
 
+import Array as A exposing (Array)
 import Html exposing (Attribute, Html, div, fromElement)
 import Html.Attributes as Attr exposing (style)
 import Html.Events exposing (on)
@@ -42,9 +43,10 @@ oneLayer maybAddr centre tileSource window dz zoom =
         -- work out how far to shift the map div to make the desired centre the centre
         offset = originOffset window relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        attrs = loadingAttrs maybAddr tileCounts zoom
         displ = M.withDefault "inline-block" <| M.map (\_ -> "none") maybAddr
-        mapEl = flowTable zoomTileSize (renderOneTile attrs displ zoom zoomTileSize tileSource.tileUrl) tileRows
+        imageAttrs = Attr.style (("display", displ) :: (dimensions (zoomTileSize, zoomTileSize))) :: loadingAttrs maybAddr tileCounts zoom
+        rowAttrs = [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px zoomTileSize)])]
+        mapEl = flowTable zoomTileSize (renderOneTile imageAttrs zoom tileSource.tileUrl) rowAttrs tileRows
     in applyPosition mapEl offset
 
 loadingAttrs : Maybe (S.Address (Progress)) -> (Int, Int) -> Int -> List Attribute
@@ -65,9 +67,9 @@ applyPosition el pixels =
     in div [attr] [el]
 
 -- use the model to render a single tile
-renderOneTile : List Attribute -> String -> Int -> Int -> TileUrl -> Tile -> Html
-renderOneTile attrs display zoom tileSize url tile =
-    Html.img (attrs ++ [Attr.src (url zoom tile), Attr.style (("display", display) :: (dimensions (tileSize, tileSize)))]) []
+renderOneTile : List Attribute -> Int -> TileUrl -> Tile -> Html
+renderOneTile attrs zoom url tile =
+    Html.img (Attr.src (url zoom tile) :: attrs) []
     
 -- which tile should go in the top left hand corner?
 origin : Tile -> (Int, Int) -> Tile
@@ -81,10 +83,10 @@ originOffset window centreOffset =
     let halfWindow = T.map (\pix -> pix // 2) window
     in halfWindow `T.subtract` centreOffset
 
-flowTable : Int -> (a -> Html) -> List (List a) -> Html
-flowTable tileSize renderer arr = 
-    let row els = Html.div [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px tileSize)])] (map renderer els)
-    in div [] (map row arr)
+flowTable : Int -> (a -> Html) -> List Attribute -> Array (Array a) -> Html
+flowTable tileSize renderer rowAttrs arr = 
+    let row els = Html.div rowAttrs (A.toList <| A.map renderer els)
+    in div [] (A.toList <| A.map row arr)
 
 -- supporting functions
 vid = flip (//)
@@ -93,5 +95,8 @@ mer = flip (%)
 range : Int -> Int -> List Int
 range origin count = [origin..(origin + count - 1)]
 
-rows : (a -> b -> c) -> (List a, List b) -> List (List c)
-rows f (xs, ys) = map (\y -> map (\x -> (f x y)) xs) ys
+rows : (a -> b -> c) -> (List a, List b) -> Array (Array c)
+rows f (xs, ys) =
+    let arrX = A.fromList xs
+        arrY = A.fromList ys
+    in A.map (\y -> A.map (\x -> (f x y)) arrX) arrY
