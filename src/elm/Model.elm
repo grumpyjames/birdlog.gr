@@ -175,15 +175,31 @@ maybeUpdateZoom m (readyLevel, progressIncrement) =
           else
               m
 
+any : (a -> Bool) -> List a -> Bool
+any p l = L.filter p l |> L.head |> M.map (\a -> True) |> M.withDefault False
+
+matches : Int -> Sighting -> (Sequenced Recording -> Bool)
+matches sequence s =
+    \sr -> sr.sequence == sequence &&
+           case sr.item of
+             New sighting -> sighting == s
+             Replace _ sighting -> sighting == s
+             otherwise -> False
+
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
     let sequence = M.withDefault 0 <| M.map (\s -> s.sequence + 1) <| L.head m.records
-    in
-      { m
-      | records <- (Sequenced sequence r) :: m.records
-      , formState <- Nothing
-      }
-
+        appendRecord rec = 
+            { m | records <- (Sequenced sequence rec) :: m.records
+            , formState <- Nothing }
+    in case r of
+         Replace sequence sighting -> 
+             let identical = any (matches sequence sighting) m.records
+             in if identical
+                then { m | formState <- Nothing }
+                else appendRecord r
+         otherwise -> appendRecord r
+              
 applyFormChange : SightingForm -> FormChange -> SightingForm
 applyFormChange sf fc =
     let newFormState fs fc = 
