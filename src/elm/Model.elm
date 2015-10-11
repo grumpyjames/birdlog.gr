@@ -97,7 +97,6 @@ type alias Model =
     , records : List (Sequenced Recording)
     , locationProgress : Bool
     , message : Maybe ModalMessage 
-    , nextSequence : Int
     -- records with sequence <= than this have been synced with the server
     , highWaterMark : Int
     , replicationState : ReplicationState
@@ -154,7 +153,7 @@ applyEvent (t, e) oldM =
       HighWaterMark hwm -> { m | highWaterMark <- hwm, replicationState <- ReplicatedAt t }
       ReplicationFailed -> { m | replicationState <- ReplicatedAt t }
       Pulse t -> m
-      LoggedIn nick lastSeq rec -> { m | sessionState <- LoggedInUser nick, nextSequence <- 1 + lastSeq, records <- rec, highWaterMark <- lastSeq }
+      LoggedIn nick hwm rec -> { m | sessionState <- LoggedInUser nick, records <- rec, highWaterMark <- hwm }
       otherwise -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
@@ -175,12 +174,11 @@ maybeUpdateZoom m (readyLevel, progressIncrement) =
 
 applyRecordChange : Model -> Recording -> Model
 applyRecordChange m r = 
-    let newSequence = m.nextSequence + 1
+    let sequence = M.withDefault 0 <| M.map (\s -> s.sequence + 1) <| L.head m.records
     in
       { m
-      | records <- (Sequenced m.nextSequence r) :: m.records
+      | records <- (Sequenced sequence r) :: m.records
       , formState <- Nothing
-      , nextSequence <- newSequence
       }
 
 applyFormChange : SightingForm -> FormChange -> SightingForm
