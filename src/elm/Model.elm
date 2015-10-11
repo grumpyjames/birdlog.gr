@@ -126,7 +126,10 @@ applyTime oldM t =
               let payload = toReplicate oldM
               in if (L.isEmpty payload) 
                  then { oldM | replicationState <- ReplicatedAt t }
-                 else { oldM | replicationState <- TriggerReplication payload }
+                 else 
+                     case oldM.sessionState of
+                       LoggedInUser n -> { oldM | replicationState <- TriggerReplication payload }
+                       otherwise -> oldM
           else oldM
       TriggerReplication _ -> { oldM | replicationState <- Replicating }
       otherwise -> oldM
