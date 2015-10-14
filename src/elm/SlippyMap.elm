@@ -1,6 +1,7 @@
 module SlippyMap (main) where
 
 import ArcGIS exposing (arcGIS)
+import Buttons exposing (ourButton)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
@@ -13,8 +14,7 @@ import Tuple as T
 import Types exposing (GeoPoint, Position, Tile, TileOffset, TileSource, Zoom(..))
 import Ui
 
-import Color exposing (rgb)
-import Debug exposing (crash, log)
+import Debug exposing (log)
 import Dict as D
 import Http
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
@@ -287,7 +287,6 @@ modalInstructions m addr lrAddr =
                     , br
                     , dismissButton addr "Ok, got it..."
                     ])
--- ourButton [("circ", True), ("zoom", True)] address (ZoomChange 1) "+"
     in [Ui.modal (S.forwardTo addr (\_ -> DismissModal)) m.windowSize modalBody] 
     
 dismissButton : S.Address (Events) -> String -> Html
@@ -377,21 +376,12 @@ tileSrcDropDown address =
     let onChange = ons address
     in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
 
-zoomIn address = ourButton [("circ", True), ("zoom", True)] address (ZoomChange 1) "+"
-zoomOut address = ourButton [("circ", True), ("zoom", True)] address (ZoomChange (-1)) "-"
-locationButton inProgress address = ourButton [("circ", True), ("location", True), ("inprogress", inProgress)] address () ""
+zoomIn address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange 1)) "+"
+zoomOut address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange (-1))) "-"
+locationButton inProgress address = ourButton [("circ", True), ("location", True), ("inprogress", inProgress)] (S.message address ()) ""
 
 buttons model attrs actionAddress locationRequestAddress = 
     div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton model.locationProgress locationRequestAddress, tileSrcDropDown actionAddress]
-
-hoverC = rgb 240 240 240
-downC = rgb 235 235 235
-upC = rgb 248 248 248
-
-ourButton : List (String, Bool) -> (S.Address a) -> a -> String -> Html
-ourButton classes address msg txt = 
-    let events = [onClick, (\ad ms -> onWithOptions "touchend" Ui.stopEverything JD.value (\_ -> Signal.message ad ms))]
-    in button ((Attr.classList classes) :: (L.map (\e -> e address msg) events)) [text txt]
 
 -- lon min: -180
 -- lat min : 85.0511
