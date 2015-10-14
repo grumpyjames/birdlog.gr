@@ -37,7 +37,7 @@ type Events = ZoomChange Float
             | Click (Int, Int)
             | AmendRecord Int
             | DismissModal
-            | TouchEvent (Maybe Metacarpal.Event)
+            | TouchEvent Metacarpal.Event
             | SightingChange FormChange 
             | RecordChange Recording
             | WindowSize (Int, Int)
@@ -142,7 +142,7 @@ applyEvent (t, e) oldM =
       ZoomChange f -> applyZoom m f
       ArrowPress ap -> applyKeys m ap 
       Click c -> applyClick m t c
-      TouchEvent te -> (applyMaybe (applyTouchEvent t)) m te
+      TouchEvent te -> applyTouchEvent t m te
       SightingChange fc -> {m | formState <- (M.map (\fs -> applyFormChange fs fc) m.formState)}
       RecordChange r -> applyRecordChange m r
       TileSourceChange tsc -> {m | tileSource <- tsc }

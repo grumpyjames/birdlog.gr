@@ -155,7 +155,7 @@ main =
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
         initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) -1 (ReplicatedAt time) NotLoggedIn
-    in S.map view <| S.dropRepeats <| S.foldp applyEvent initialModel events
+    in S.map view <| S.foldp applyEvent initialModel events
 
 -- a few useful constants
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"

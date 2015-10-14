@@ -47,7 +47,7 @@ type State
 
 type alias Metacarpal =
     {
-      signal : Signal (Maybe Event)
+      signal : Signal Event
     , attr : List Attribute
     }
 
@@ -57,8 +57,11 @@ metacarpal = S.mailbox (MouseOut (0, 0))
 index : Metacarpal
 index = Metacarpal sgn interactions
 
-sgn : Signal (Maybe Event)
-sgn = S.map snd <| S.foldp parse (Clean, M.Nothing) metacarpal.signal
+sgn : Signal Event
+sgn = 
+    S.filterMap (\a -> a) (Drag (0, 0)) <|
+     S.map snd <| 
+      S.foldp parse (Clean, M.Nothing) metacarpal.signal
 
 parse : InnerEvent -> (State, Maybe Event) -> (State, Maybe Event)
 parse ie s = 
