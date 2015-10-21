@@ -187,18 +187,17 @@ events =
 -- view concerns
 view model = 
     let layerReady = S.forwardTo actions.address (\r -> LayerReady r)
-        mapLayer = Tile.render layerReady model
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
         controlPanel = controls model sources [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address locationRequests.address model
         recentRecords = records actions.address model
-        clickCatcher = div (index.attr ++ [styles]) []
         possiblyReplicate = considerReplication actions.address model
     in div [styles] (
-                     [ mapLayer
-                     , clickCatcher
+                     [ Tile.render layerReady model
+                     , div (index.attr ++ [styles]) []
                      , controlPanel
+                     , userPanel model.sessionState
                      ] 
                      ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
 
@@ -211,6 +210,21 @@ sources =
                , ("ArcGIS", arcGIS)
                , ("MapBox", mapBoxSource)
                ]
+
+userPanel : SessionState -> Html
+userPanel ss =
+    let userDiv content = div [ Attr.id "user"
+                              , Attr.style [ ("top", "5px")
+                                           , ("right", "5px")
+                                           , ("position", "absolute")
+                                           ]
+                              ] content
+    in case ss of
+      NotLoggedIn -> userDiv [Html.a [Attr.href "/api/login"] [text "Login"]]
+      LoggedInUser nick -> userDiv
+                           [ text ("Logged in as " ++ nick ++ " | ")
+                           , Html.a [Attr.href "/api/logout"] [text "Logout"] 
+                           ]
 
 replicationSpinner : List Attribute -> Html
 replicationSpinner attrs = 
