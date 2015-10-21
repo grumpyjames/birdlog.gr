@@ -15,7 +15,6 @@ targetId = ("target" := ("id" := J.string))
 
 isTargetId : String -> Decoder Bool
 isTargetId id = J.customDecoder targetId (\eyed -> if eyed == id then Result.Ok True else Result.Err "nope!") 
-
 targetWithId : (Bool -> Message) -> String -> String -> Attribute
 targetWithId msg event id = onWithOptions event stopEverything (isTargetId id) msg
 

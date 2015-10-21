@@ -15,7 +15,7 @@ import Types exposing (GeoPoint, Position, Tile, TileOffset, TileSource, Zoom(..
 import Ui
 
 import Debug exposing (log)
-import Dict as D
+import Dict as D exposing (Dict)
 import Http
 import Html exposing (Attribute, Html, button, div, input, form, text, select, option, fromElement)
 import Html.Attributes as Attr exposing (style)
@@ -158,8 +158,6 @@ main =
     in S.map view <| S.foldp applyEvent initialModel events
 
 -- a few useful constants
-accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
-mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
 defaultTileSrc = mapBoxSource
 greenwich = GeoPoint 51.48 0.0        
 
@@ -362,26 +360,36 @@ records addr model =
     let amendAction seq = on "click" (JD.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
     in L.map (\s -> tick [amendAction s.sequence] [] (fromGeopoint model s.item.location)) <| sightings model.records
 
-ons : S.Address (Events) -> Attribute
-ons add = 
-    let toMsg v = 
-        case v of
-          "OpenStreetMap" -> openStreetMap
-          "ArcGIS" -> arcGIS
-          "MapBox" -> mapBoxSource
-    in on "change" targetValue (\v -> S.message add (TileSourceChange (toMsg v)))
+accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
+mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
 
-tileSrcDropDown : S.Address (Events) -> Html
-tileSrcDropDown address = 
-    let onChange = ons address
-    in select [onChange] [option [] [text "MapBox"], option [] [text "OpenStreetMap"], option [] [text "ArcGIS"]]                
+sources : Dict String TileSource
+sources =
+    D.fromList [ ("OpenStreetMap", openStreetMap)
+               , ("ArcGIS", arcGIS)
+               , ("MapBox", mapBoxSource)
+               ]
+
+cont : Dict String TileSource -> String -> Result String Events
+cont srcs v = D.get v srcs |>
+              M.map (\a -> Result.Ok (TileSourceChange a)) |> 
+              M.withDefault (Result.Err ("source " ++ (toString v) ++ " not found"))
+
+ons : Dict String TileSource -> S.Address (Events) -> List Attribute
+ons srcs addr = 
+    let decoder = JD.customDecoder targetValue (cont srcs)
+    in [on "change" decoder (S.message addr)]
+
+tileSrcDropDown : Dict String TileSource -> S.Address (Events) -> Html
+tileSrcDropDown srcs address = 
+    select (ons srcs address) <| L.map (\srcName -> option [] [text (toString srcName)]) <| D.keys srcs
 
 zoomIn address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange 1)) "+"
 zoomOut address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange (-1))) "-"
 locationButton inProgress address = ourButton [("circ", True), ("location", True), ("inprogress", inProgress)] (S.message address ()) ""
 
 buttons model attrs actionAddress locationRequestAddress = 
-    div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton model.locationProgress locationRequestAddress, tileSrcDropDown actionAddress]
+    div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton model.locationProgress locationRequestAddress, tileSrcDropDown sources actionAddress]
 
 -- lon min: -180
 -- lat min : 85.0511
