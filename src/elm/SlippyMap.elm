@@ -275,15 +275,11 @@ modalInstructions : Model -> S.Address (Events) -> S.Address () -> List Html
 modalInstructions m addr lrAddr = 
     let welcomeMsg = 
             case m.sessionState of
-              NotLoggedIn -> [ text english.welcome
-                             , br
-                             , Html.a [Attr.href "/api/login"] [text "Login"]
-                             , text " to keep your recordings safe"
-                             ]
-              LoggedInUser nickname -> [ text (english.welcome ++ ", " ++ nickname) ]
+              NotLoggedIn -> text english.welcome
+              LoggedInUser nickname -> text (english.welcome ++ ", " ++ nickname)
         modalBody = div [] 
-                    (welcomeMsg ++ 
-                    [ br
+                    [ welcomeMsg
+                    , br
                     , br
                     , text english.usage
                     , br
@@ -299,7 +295,7 @@ modalInstructions m addr lrAddr =
                     , text english.click
                     , br
                     , dismissButton addr "Ok, got it..."
-                    ])
+                    ]
     in [Ui.modal (S.forwardTo addr (\_ -> DismissModal)) m.windowSize modalBody] 
     
 dismissButton : S.Address (Events) -> String -> Html

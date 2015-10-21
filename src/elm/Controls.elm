@@ -32,7 +32,7 @@ ons srcs addr =
 tileSrcDropDown : Dict String TileSource -> S.Address (Events) -> Html
 tileSrcDropDown srcs address = 
     Html.select (ons srcs address) 
-            <| L.map (\srcName -> Html.option [] [Html.text (toString srcName)]) 
+            <| L.map (\srcName -> Html.option [] [Html.text srcName]) 
             <| D.keys srcs
 
 zoomIn address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange 1)) "+"
