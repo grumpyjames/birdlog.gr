@@ -1,7 +1,7 @@
 module SlippyMap (main) where
 
 import ArcGIS exposing (arcGIS)
-import Buttons exposing (ourButton)
+import Controls exposing (controls, locationButton, zoomIn, zoomOut)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
@@ -190,12 +190,27 @@ view model =
         mapLayer = Tile.render layerReady model
         window = model.windowSize
         styles = style (absolute ++ dimensions window ++ zeroMargin)
-        controls = buttons model [style absolute] actions.address locationRequests.address
+        controlPanel = controls model sources [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address locationRequests.address model
         recentRecords = records actions.address model
         clickCatcher = div (index.attr ++ [styles]) []
         possiblyReplicate = considerReplication actions.address model
-    in div [styles] ([mapLayer, clickCatcher, controls] ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
+    in div [styles] (
+                     [ mapLayer
+                     , clickCatcher
+                     , controlPanel
+                     ] 
+                     ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
+
+accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
+mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
+
+sources : Dict String TileSource
+sources =
+    D.fromList [ ("OpenStreetMap", openStreetMap)
+               , ("ArcGIS", arcGIS)
+               , ("MapBox", mapBoxSource)
+               ]
 
 replicationSpinner : List Attribute -> Html
 replicationSpinner attrs = 
@@ -359,37 +374,6 @@ records : S.Address (Events) -> Model -> List Html
 records addr model =
     let amendAction seq = on "click" (JD.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
     in L.map (\s -> tick [amendAction s.sequence] [] (fromGeopoint model s.item.location)) <| sightings model.records
-
-accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
-mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
-
-sources : Dict String TileSource
-sources =
-    D.fromList [ ("OpenStreetMap", openStreetMap)
-               , ("ArcGIS", arcGIS)
-               , ("MapBox", mapBoxSource)
-               ]
-
-cont : Dict String TileSource -> String -> Result String Events
-cont srcs v = D.get v srcs |>
-              M.map (\a -> Result.Ok (TileSourceChange a)) |> 
-              M.withDefault (Result.Err ("source " ++ (toString v) ++ " not found"))
-
-ons : Dict String TileSource -> S.Address (Events) -> List Attribute
-ons srcs addr = 
-    let decoder = JD.customDecoder targetValue (cont srcs)
-    in [on "change" decoder (S.message addr)]
-
-tileSrcDropDown : Dict String TileSource -> S.Address (Events) -> Html
-tileSrcDropDown srcs address = 
-    select (ons srcs address) <| L.map (\srcName -> option [] [text (toString srcName)]) <| D.keys srcs
-
-zoomIn address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange 1)) "+"
-zoomOut address = ourButton [("circ", True), ("zoom", True)] (S.message address (ZoomChange (-1))) "-"
-locationButton inProgress address = ourButton [("circ", True), ("location", True), ("inprogress", inProgress)] (S.message address ()) ""
-
-buttons model attrs actionAddress locationRequestAddress = 
-    div attrs [zoomIn actionAddress, zoomOut actionAddress, locationButton model.locationProgress locationRequestAddress, tileSrcDropDown sources actionAddress]
 
 -- lon min: -180
 -- lat min : 85.0511
