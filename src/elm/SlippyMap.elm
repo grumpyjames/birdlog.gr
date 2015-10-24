@@ -198,6 +198,7 @@ view model =
                      , div (index.attr ++ [styles]) []
                      , controlPanel
                      , userPanel model.sessionState
+                     , instructionsPanel actions.address
                      ] 
                      ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
 
@@ -225,6 +226,14 @@ userPanel ss =
                            [ text ("Logged in as " ++ nick ++ " | ")
                            , Html.a [Attr.href "/api/logout"] [text "Logout"] 
                            ]
+
+instructionsPanel : S.Address (Events) -> Html
+instructionsPanel addr = 
+    Html.a [ Attr.href "#"
+           , onWithOptions "click" Ui.stopEverything (JD.succeed ShowInstructions) (S.message addr)
+           , Attr.style (absolute ++ [("bottom", "5px"), ("left", "5px")]) 
+           ] 
+           [ Html.text "Instructions" ]
 
 replicationSpinner : List Attribute -> Html
 replicationSpinner attrs = 

@@ -51,6 +51,7 @@ type Events = ZoomChange Float
             | ReplicationFailed
             | Pulse Time
             | LoggedIn String Int (List (Sequenced Recording))
+            | ShowInstructions
 
 type FormChange = Species String
                 | Count String
@@ -157,6 +158,7 @@ applyEvent (t, e) oldM =
       ReplicationFailed -> { m | replicationState <- ReplicatedAt t }
       Pulse t -> m
       LoggedIn nick hwm rec -> { m | sessionState <- LoggedInUser nick, records <- rec, highWaterMark <- hwm }
+      ShowInstructions -> { m | message <- Just Instructions } 
       otherwise -> m
 
 applyMaybe : (b -> a -> b) -> b -> Maybe a -> b
