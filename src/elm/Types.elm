@@ -40,6 +40,11 @@ type alias TileUrl = Int -> Tile -> String
 type Zoom = Constant Int
           | Between Int Int Float
 
+type alias Sequenced a = 
+    { sequence: Int
+    , item : a
+    }
+
 type alias TileSource =
     {
       tileSize : Int

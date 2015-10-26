@@ -7,6 +7,7 @@ import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
 import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, Recording(..), ReplicationState(..), Sequenced, SessionState(..), Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
+import Replication exposing (postRecords)
 import Results as Rs
 import Styles exposing (..)
 import Tile
@@ -85,58 +86,6 @@ port initialLoginState =
     in Http.get decoder "/api/session" `Task.andThen` S.send actions.address
 
 -- http replication
-type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
-
-sghtJson : Sighting -> JS.Value
-sghtJson s = 
-    JS.object [ ("count", JS.int s.count)
-              , ("species", JS.string s.species)
-              , ("location", geoJson s.location)
-              , ("time", JS.float s.time)
-              ]
-
-typeNew : JS.Value
-typeNew = JS.object [ ("name", JS.string "New") ]
-
-typeRef : String -> Int -> JS.Value
-typeRef n seq = JS.object [ ("name", JS.string n)
-                          , ("refersTo", JS.object [("sequence", JS.int seq)])
-                          ]
-
-geoJson : GeoPoint -> JS.Value
-geoJson gp = JS.object [ ("lat", JS.float gp.lat)
-                       , ("lon", JS.float gp.lon)
-                       ]
-
-asJson : (Sequenced Recording) -> JS.Value
-asJson r = 
-    let nora typ seq item =
-        JS.object [ ("sequence", (JS.int seq))
-                  , ("type", typ)
-                  , ("item", item) 
-                  ]
-    in case r.item of 
-      New s -> 
-          nora typeNew r.sequence <| sghtJson s
-      Replace refSeq s -> 
-          nora (typeRef "Replace" refSeq) r.sequence <| sghtJson s
-      Delete refSeq -> 
-          nora (typeRef "Delete" refSeq) r.sequence <| JS.object []
-
-pack : List (Sequenced Recording) -> ReplicationPacket
-pack rs = 
-    let encode rs = Http.string <| JS.encode 0 <| JS.list <| L.map asJson rs 
-    in case rs of
-      [] -> ReplicationPacket -1 Http.empty
-      (x :: xs) -> ReplicationPacket x.sequence (encode rs) 
-
-postRecords : S.Address (Events) -> List (Sequenced Recording) -> Task Http.Error ()
-postRecords addr rs =
-    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/api/records" p.body        
-    in if (L.isEmpty rs) 
-       then Task.succeed () 
-       else http (pack rs) `Task.andThen` (S.send addr) `Task.onError` (\err -> S.send addr ReplicationFailed)
-
 replicationEvents : Signal (List (Sequenced Recording))
 replicationEvents = 
     let rev e = 
