@@ -61,13 +61,13 @@ sightingDecoder =
 fld : (a -> b) -> b -> Maybe a -> b
 fld f d myb = M.withDefault d <| M.map f myb
 
-parseRecording : AlmostRecord -> Result String (Sequenced Recording)
+parseRecording : AlmostRecord -> Result String (Sequenced (Recording Sighting))
 parseRecording ar = 
     let repOrNew sighting = Result.Ok <| (fld Replace New ar.replaces) sighting
         del = fld (Result.Ok << Delete) (Result.Err "impossible") ar.replaces
     in Result.map (Sequenced ar.sequence) <| fld repOrNew del ar.record 
 
-recordDecoder : JD.Decoder (Sequenced Recording)
+recordDecoder : JD.Decoder (Sequenced (Recording Sighting))
 recordDecoder = 
     JD.customDecoder (JD.object3 AlmostRecord
           ("sequence" := JD.int)
@@ -86,7 +86,7 @@ port initialLoginState =
     in Http.get decoder "/api/session" `Task.andThen` S.send actions.address
 
 -- http replication
-replicationEvents : Signal (List (Sequenced Recording))
+replicationEvents : Signal (List (Sequenced (Recording Sighting)))
 replicationEvents = 
     let rev e = 
             case e of 
@@ -210,7 +210,7 @@ spotLayers addr lrAddr model =
             Instructions -> modalInstructions model addr lrAddr
       Nothing -> M.withDefault [] <| M.map (\fs -> formLayers addr model fs) model.formState 
  
-toSighting : SightingForm -> Result String Recording
+toSighting : SightingForm -> Result String (Recording Sighting)
 toSighting sf =
     let countOk fs = (Rs.mapError (\a -> "count must be positive") (String.toInt fs.count)) `R.andThen` (\i -> if i > 0 then (Ok i) else (Err "count must be positive"))
         speciesNonEmpty fs c = 
@@ -329,7 +329,7 @@ tick attrs moreStyle g =
     in div (attrs ++ [style (styles ++ moreStyle), Attr.class "tick"]) []
 
 -- consolidate records into sightings
-sightings : List (Sequenced Recording) -> List (Sequenced Sighting)
+sightings : List (Sequenced (Recording Sighting)) -> List (Sequenced Sighting)
 sightings rs = 
     let f r d = 
         case r.item of

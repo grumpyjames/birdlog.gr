@@ -27,9 +27,9 @@ type alias Sequenced a =
     , item : a
     }
 
-type Recording = New Sighting
-               | Replace Int Sighting
-               | Delete Int
+type Recording a = New a
+                 | Replace Int a
+                 | Delete Int
 
 type Events = ZoomChange Float 
             | ArrowPress (Int, Int) 
@@ -39,18 +39,18 @@ type Events = ZoomChange Float
             | DismissModal
             | TouchEvent Metacarpal.Event
             | SightingChange FormChange 
-            | RecordChange Recording
+            | RecordChange (Recording Sighting)
             | WindowSize (Int, Int)
             | StartingUp 
             | LocationReceived (Maybe (Float, Float)) 
             | LocationRequestError (Maybe String) 
             | LocationRequestStarted
             | LayerReady (Int, Float)
-            | Replicate (List (Sequenced Recording))
+            | Replicate (List (Sequenced (Recording Sighting)))
             | HighWaterMark Int
             | ReplicationFailed
             | Pulse Time
-            | LoggedIn String Int (List (Sequenced Recording))
+            | LoggedIn String Int (List (Sequenced (Recording Sighting)))
             | ShowInstructions
 
 type FormChange = Species String
@@ -77,7 +77,7 @@ type alias FormState =
     }
 
 type ReplicationState = Replicating
-                      | TriggerReplication (List (Sequenced Recording))
+                      | TriggerReplication (List (Sequenced (Recording Sighting)))
                       | ReplicatedAt Time
 
 type ModalMessage = Message String
@@ -95,7 +95,7 @@ type alias Model =
     , mouseState : (Bool, (Int, Int))
     , tileSource : TileSource
     , formState : Maybe SightingForm
-    , records : List (Sequenced Recording)
+    , records : List (Sequenced (Recording Sighting))
     , locationProgress : Bool
     , message : Maybe ModalMessage 
     -- records with sequence <= than this have been synced with the server
@@ -113,7 +113,7 @@ type alias Sighting =
     , time : Time
     }
 
-toReplicate : Model -> (List (Sequenced Recording))
+toReplicate : Model -> (List (Sequenced (Recording Sighting)))
 toReplicate m = 
     let pred r = r.sequence > m.highWaterMark 
     in L.filter pred m.records 
@@ -180,7 +180,7 @@ maybeUpdateZoom m (readyLevel, progressIncrement) =
 any : (a -> Bool) -> List a -> Bool
 any p l = L.filter p l |> L.head |> M.map (\a -> True) |> M.withDefault False
 
-matches : Int -> Sighting -> (Sequenced Recording -> Bool)
+matches : Int -> Sighting -> (Sequenced (Recording Sighting) -> Bool)
 matches sequence s =
     \sr -> sr.sequence == sequence &&
            case sr.item of
@@ -188,7 +188,7 @@ matches sequence s =
              Replace _ sighting -> sighting == s
              otherwise -> False
 
-applyRecordChange : Model -> Recording -> Model
+applyRecordChange : Model -> (Recording Sighting) -> Model
 applyRecordChange m r = 
     let sequence = M.withDefault 0 <| M.map (\s -> s.sequence + 1) <| L.head m.records
         appendRecord rec = 
@@ -270,14 +270,14 @@ prepareToAmend m seq =
         record = findLast pred m.records
     in {m | formState <- fromRecord record}
 
-toFormState : (Sequenced Recording) -> Maybe SightingForm
+toFormState : (Sequenced (Recording Sighting)) -> Maybe SightingForm
 toFormState r = 
     case r.item of 
       Delete seq -> Nothing
       New s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
       Replace seq s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
 
-fromRecord : Maybe (Sequenced Recording) -> Maybe SightingForm
+fromRecord : Maybe (Sequenced (Recording Sighting)) -> Maybe SightingForm
 fromRecord record = record `M.andThen` toFormState
 
 findLast : (a -> Bool) -> List a -> Maybe a
