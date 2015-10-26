@@ -52,39 +52,9 @@ port requestLocation : Signal ()
 port requestLocation = locationRequests.signal
 
 -- session management
-geoptDecoder : JD.Decoder GeoPoint
-geoptDecoder = 
-    JD.object2 GeoPoint ("lat" := JD.float) ("lon" := JD.float)
-
-sightingDecoder : JD.Decoder Sighting
-sightingDecoder =
-    JD.object4 Sighting ("count" := JD.int) ("species" := JD.string) ("location" := geoptDecoder) ("time" := JD.float)
-
-fld : (a -> b) -> b -> Maybe a -> b
-fld f d myb = M.withDefault d <| M.map f myb
-
-parseRecording : AlmostRecord -> Result String (Sequenced (Recording Sighting))
-parseRecording ar = 
-    let repOrNew sighting = Result.Ok <| (fld Replace New ar.replaces) sighting
-        del = fld (Result.Ok << Delete) (Result.Err "impossible") ar.replaces
-    in Result.map (Sequenced ar.sequence) <| fld repOrNew del ar.record 
-
-recordDecoder : JD.Decoder (Sequenced (Recording Sighting))
-recordDecoder = 
-    JD.customDecoder (JD.object3 AlmostRecord
-          ("sequence" := JD.int)
-          (JD.maybe <| JD.at ["type", "refersTo", "sequence"] JD.int)
-          ("record" := JD.maybe sightingDecoder)) parseRecording 
-
-type alias AlmostRecord = 
-    { sequence: Int
-    , replaces: Maybe Int
-    , record: Maybe Sighting
-    }
-
 port initialLoginState : Task Http.Error ()
 port initialLoginState = 
-    let decoder = JD.object3 LoggedIn ("nick" := JD.string) ("lastSequence" := JD.int) ("recent" := JD.list recordDecoder)
+    let decoder = JD.object3 LoggedIn ("nick" := JD.string) ("lastSequence" := JD.int) ("recent" := JD.list (Sequenced.decoder (Sighting.decoder)))
     in Http.get decoder "/api/session" `Task.andThen` S.send actions.address
 
 -- http replication

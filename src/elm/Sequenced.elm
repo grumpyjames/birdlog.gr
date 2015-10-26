@@ -1,11 +1,15 @@
 module Sequenced ( Recording(..)
                  , Sequenced
                  , consolidate
+                 , decoder
                  , encoder
                  , fold
                  , matches ) where
+
+import Maybes
     
 import Dict as D
+import Json.Decode as JD exposing ((:=))
 import Json.Encode as JE
 import List as L
 
@@ -26,6 +30,25 @@ consolidate rs =
           Replace seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
           Delete seq -> D.remove seq d
     in D.values <| L.foldr f D.empty rs
+
+decoder : (JD.Decoder a) -> (JD.Decoder (Sequenced (Recording a)))
+decoder valDecoder = 
+   JD.customDecoder (JD.object3 AlmostRecord
+          ("sequence" := JD.int)
+          (JD.maybe <| JD.at ["type", "refersTo", "sequence"] JD.int)
+          ("record" := JD.maybe valDecoder)) parseRecording 
+
+parseRecording : (AlmostRecord a) -> Result String (Sequenced (Recording a))
+parseRecording ar = 
+    let repOrNew a = Result.Ok <| (Maybes.fold Replace New ar.replaces) a
+        del = Maybes.fold (Result.Ok << Delete) (Result.Err "impossible") ar.replaces
+    in Result.map (Sequenced ar.sequence) <| Maybes.fold repOrNew del ar.record 
+ 
+type alias AlmostRecord a = 
+    { sequence: Int
+    , replaces: Maybe Int
+    , record: Maybe a
+    }
 
 encoder : (a -> JE.Value) -> Sequenced (Recording a) -> JE.Value
 encoder valEnc s =
