@@ -5,11 +5,12 @@ import Controls exposing (controls, locationButton, zoomIn, zoomOut)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, ReplicationState(..), SessionState(..), Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, ReplicationState(..), SessionState(..), SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Replication exposing (postRecords)
 import Results as Rs
 import Sequenced exposing (Recording(..), Sequenced)
+import Sighting exposing (Sighting)
 import Styles exposing (..)
 import Tile
 import Tuple as T
@@ -97,7 +98,7 @@ replicationEvents =
 
 port httpReplication : Signal (Task Http.Error ())
 port httpReplication =
-    S.map (postRecords actions.address) replicationEvents 
+    S.map (postRecords actions.address Sighting.encoder) replicationEvents 
 
 -- main
 main =

@@ -5,7 +5,6 @@ module Model ( Events(..)
              , Model
              , ReplicationState(..)
              , SessionState(..)
-             , Sighting
              , SightingForm(..)
              , applyEvent
              , state) where
@@ -13,6 +12,7 @@ module Model ( Events(..)
 import CommonLocator
 import Metacarpal
 import Sequenced exposing (Recording(..), Sequenced)
+import Sighting exposing (Sighting)
 import Tuple as T
 import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom(..))
 
@@ -92,15 +92,6 @@ type alias Model =
     , highWaterMark : Int
     , replicationState : ReplicationState
     , sessionState : SessionState
-    }
-
-type alias Sighting =
-    {
-      count: Int
-    , species: String
-    , location: GeoPoint
-    -- millis
-    , time : Time
     }
 
 toReplicate : Model -> (List (Sequenced (Recording Sighting)))
