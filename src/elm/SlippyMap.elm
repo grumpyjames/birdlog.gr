@@ -5,10 +5,11 @@ import Controls exposing (controls, locationButton, zoomIn, zoomOut)
 import CommonLocator exposing (tiley2lat, tilex2long)
 import MapBox exposing (mapBox)
 import Metacarpal exposing (index, Metacarpal, InnerEvent, Event(..))
-import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, Recording(..), ReplicationState(..), Sequenced, SessionState(..), Sighting, SightingForm(..), applyEvent, state)
+import Model exposing (Events(..), FormChange(..), FormState, ModalMessage(..), Model, ReplicationState(..), SessionState(..), Sighting, SightingForm(..), applyEvent, state)
 import Osm exposing (openStreetMap)
 import Replication exposing (postRecords)
 import Results as Rs
+import Sequenced exposing (Recording(..), Sequenced)
 import Styles exposing (..)
 import Tile
 import Tuple as T
@@ -311,7 +312,7 @@ delButton addr sf title =
       otherwise -> []
 
 val : (FormState -> String) -> SightingForm -> List Attribute
-val extractor sf = 
+val extractor sf =
     case sf of
       PendingAmend seq fs -> [Attr.value (extractor fs)]
       otherwise -> []
@@ -328,20 +329,10 @@ tick attrs moreStyle g =
     let styles = absolute ++ position (g `T.subtract` (6, 20)) ++ zeroMargin
     in div (attrs ++ [style (styles ++ moreStyle), Attr.class "tick"]) []
 
--- consolidate records into sightings
-sightings : List (Sequenced (Recording Sighting)) -> List (Sequenced Sighting)
-sightings rs = 
-    let f r d = 
-        case r.item of
-          New s -> D.insert r.sequence (Sequenced r.sequence s) d
-          Replace seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
-          Delete seq -> D.remove seq d
-    in D.values <| L.foldr f D.empty rs
-
 records : S.Address (Events) -> Model -> List Html
 records addr model =
     let amendAction seq = on "click" (JD.succeed seq) (\sequence -> S.message addr (AmendRecord sequence)) 
-    in L.map (\s -> tick [amendAction s.sequence] [] (fromGeopoint model s.item.location)) <| sightings model.records
+    in L.map (\s -> tick [amendAction s.sequence] [] (fromGeopoint model s.item.location)) <| Sequenced.consolidate model.records
 
 -- lon min: -180
 -- lat min : 85.0511

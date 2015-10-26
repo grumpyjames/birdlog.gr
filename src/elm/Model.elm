@@ -3,9 +3,7 @@ module Model ( Events(..)
              , FormState
              , ModalMessage(..)
              , Model
-             , Recording(..)
              , ReplicationState(..)
-             , Sequenced
              , SessionState(..)
              , Sighting
              , SightingForm(..)
@@ -14,6 +12,7 @@ module Model ( Events(..)
 
 import CommonLocator
 import Metacarpal
+import Sequenced exposing (Recording(..), Sequenced)
 import Tuple as T
 import Types exposing (GeoPoint, Locator, TileSource, TileUrl, Zoom(..))
 
@@ -21,15 +20,6 @@ import Debug
 import List as L
 import Maybe as M
 import Time exposing (Time)
-
-type alias Sequenced a = 
-    { sequence: Int
-    , item : a
-    }
-
-type Recording a = New a
-                 | Replace Int a
-                 | Delete Int
 
 type Events = ZoomChange Float 
             | ArrowPress (Int, Int) 

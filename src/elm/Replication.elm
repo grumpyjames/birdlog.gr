@@ -1,6 +1,7 @@
 module Replication (postRecords) where
 
-import Model exposing (Events(..), Recording(..), Sequenced, Sighting)
+import Model exposing (Events(..), Sighting)
+import Sequenced exposing (Recording(..), Sequenced)
 import Types exposing (GeoPoint)
 
 import Http
