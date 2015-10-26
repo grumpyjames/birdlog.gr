@@ -254,11 +254,16 @@ prepareToAmend m seq =
 
 toFormState : (Sequenced (Recording Sighting)) -> Maybe SightingForm
 toFormState r = 
-    case r.item of 
-      Delete seq -> Nothing
-      New s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
-      Replace seq s -> Just <| PendingAmend r.sequence <| FormState (toString s.count) s.species s.location s.time
-
+    let asFormState sighting = 
+            FormState (toString sighting.count) sighting.species sighting.location sighting.time
+        sightingForm sequence sighting =
+            Just <| PendingAmend sequence <| asFormState sighting
+    in Sequenced.fold 
+           (\s i -> sightingForm s i)
+           (\s _ i -> sightingForm s i)
+           (\s _ -> Nothing)
+           r
+           
 fromRecord : Maybe (Sequenced (Recording Sighting)) -> Maybe SightingForm
 fromRecord record = record `M.andThen` toFormState
 

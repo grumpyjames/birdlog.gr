@@ -1,6 +1,7 @@
 module Sequenced ( Recording(..)
                  , Sequenced
                  , consolidate
+                 , fold
                  , matches ) where
     
 import Dict as D
@@ -23,6 +24,13 @@ consolidate rs =
           Replace seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
           Delete seq -> D.remove seq d
     in D.values <| L.foldr f D.empty rs
+
+fold : (Int -> a -> b) -> (Int -> Int -> a -> b) -> (Int -> Int -> b) -> (Sequenced (Recording a)) -> b
+fold onNew onReplace onDelete s =
+    case s.item of
+      New n -> onNew s.sequence n
+      Replace seq r -> onReplace s.sequence seq r
+      Delete seq -> onDelete s.sequence seq
 
 matches : Int -> a -> Sequenced (Recording a) -> Bool
 matches sequence item = 
