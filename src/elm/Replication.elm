@@ -14,10 +14,10 @@ type alias ReplicationPacket = { maxSequence: Int, body: Http.Body }
 
 postRecords : S.Address (Events) -> (a -> JE.Value) -> List (Sequenced (Recording a)) -> Task Http.Error ()
 postRecords addr encoder rs =
-    let http p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/api/records" p.body        
+    let httpPost p = Http.post (JD.succeed (HighWaterMark p.maxSequence)) "/api/records" p.body        
     in if (L.isEmpty rs) 
        then Task.succeed () 
-       else http (pack encoder rs) 
+       else httpPost (pack encoder rs) 
                 `Task.andThen` (S.send addr) 
                 `Task.onError` (\err -> S.send addr ReplicationFailed)
 
