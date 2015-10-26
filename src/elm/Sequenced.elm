@@ -24,11 +24,11 @@ type Recording a = New a
 
 consolidate : List (Sequenced (Recording a)) -> List (Sequenced a)
 consolidate rs = 
-    let f r d = 
-        case r.item of
-          New s -> D.insert r.sequence (Sequenced r.sequence s) d
-          Replace seq s -> D.insert r.sequence (Sequenced r.sequence s) <| D.remove seq d
-          Delete seq -> D.remove seq d
+    let f r d =
+        fold (\s i -> D.insert s (Sequenced s i) d)
+             (\s rs i -> D.insert s (Sequenced s i) <| D.remove rs d)
+             (\s rs -> D.remove rs d)
+             r
     in D.values <| L.foldr f D.empty rs
 
 decoder : (JD.Decoder a) -> (JD.Decoder (Sequenced (Recording a)))
@@ -51,19 +51,17 @@ type alias AlmostRecord a =
     }
 
 encoder : (a -> JE.Value) -> Sequenced (Recording a) -> JE.Value
-encoder valEnc s =
+encoder valEnc sequenced =
     let nora typ seq item =
         JE.object [ ("sequence", (JE.int seq))
                   , ("type", typ)
                   , ("item", item) 
                   ]
-    in case s.item of 
-      New n -> 
-          nora typeNew s.sequence <| valEnc n
-      Replace refSeq r -> 
-          nora (typeRef "Replace" refSeq) s.sequence <| valEnc r
-      Delete refSeq -> 
-          nora (typeRef "Delete" refSeq) s.sequence <| JE.object []
+    in 
+      fold (\s i -> nora typeNew s (valEnc i))
+           (\s rs i -> nora (typeRef "Replace" rs) s (valEnc i))
+           (\s rs -> nora (typeRef "Delete" rs) s <| JE.object [])
+           sequenced
 
 typeNew : JE.Value
 typeNew = JE.object [ ("name", JE.string "New") ]
