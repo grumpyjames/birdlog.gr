@@ -80,9 +80,10 @@ replicate m =
       TriggerReplication payload -> Just payload
       otherwise -> Nothing
 
-port httpReplication : Signal (Task Http.Error ())
+port httpReplication : Signal (Task () ())
 port httpReplication =
-    S.map (postRecords actions.address Sighting.encoder) replicationEvents 
+    S.map (\t -> t `Task.onError` (\err -> S.send actions.address ReplicationFailed)) 
+         <| S.map (postRecords actions.address Sighting.encoder) replicationEvents 
 
 -- a few useful constants
 defaultTileSrc = mapBoxSource
