@@ -75,8 +75,12 @@ main =
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
-        initialModel = Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) -1 (ReplicatedAt time) NotLoggedIn
-    in S.map view <| S.foldp applyEvent initialModel events
+        initialModel = 
+            Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) -1 (ReplicatedAt time) NotLoggedIn
+    in S.map view <| modelSignal initialModel
+
+modelSignal : Model -> Signal Model
+modelSignal initialModel = S.foldp applyEvent initialModel events
 
 -- a few useful constants
 defaultTileSrc = mapBoxSource
