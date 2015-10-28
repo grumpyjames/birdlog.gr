@@ -57,30 +57,32 @@ port initialLoginState =
     let decoder = JD.object3 LoggedIn ("nick" := JD.string) ("lastSequence" := JD.int) ("recent" := JD.list (Sequenced.decoder (Sighting.decoder)))
     in Http.get decoder "/api/session" `Task.andThen` S.send actions.address
 
--- http replication
-replicationEvents : Signal (List (Sequenced (Recording Sighting)))
-replicationEvents = 
-    let rev e = 
-            case e of 
-              Replicate rs -> Just rs
-              otherwise -> Nothing
-    in S.filterMap rev [] actions.signal 
-
-port httpReplication : Signal (Task Http.Error ())
-port httpReplication =
-    S.map (postRecords actions.address Sighting.encoder) replicationEvents 
-
 -- main
-main =
+main = S.map view modelSignal
+
+modelSignal : Signal Model
+modelSignal = 
     let initialZoom = Constant 15
         initialWindow = (initialWinX, initialWinY)
         initialMouse = (False, (0,0))
         initialModel = 
             Model hdpi greenwich initialWindow initialZoom initialMouse defaultTileSrc Nothing [] False (Just Instructions) -1 (ReplicatedAt time) NotLoggedIn
-    in S.map view <| modelSignal initialModel
+    in S.foldp applyEvent initialModel events
 
-modelSignal : Model -> Signal Model
-modelSignal initialModel = S.foldp applyEvent initialModel events
+-- http replication
+replicationEvents : Signal (List (Sequenced (Recording Sighting)))
+replicationEvents = 
+    S.filterMap identity [] <| S.map replicate modelSignal
+
+replicate : Model -> Maybe (List (Sequenced (Recording Sighting)))
+replicate m =
+    case m.replicationState of
+      TriggerReplication payload -> Just payload
+      otherwise -> Nothing
+
+port httpReplication : Signal (Task Http.Error ())
+port httpReplication =
+    S.map (postRecords actions.address Sighting.encoder) replicationEvents 
 
 -- a few useful constants
 defaultTileSrc = mapBoxSource
@@ -117,7 +119,6 @@ view model =
         controlPanel = controls model sources [style absolute] actions.address locationRequests.address
         spottedLayers = spotLayers actions.address locationRequests.address model
         recentRecords = records actions.address model
-        possiblyReplicate = considerReplication actions.address model
     in div [styles] (
                      [ Tile.render layerReady model
                      , div (index.attr ++ [styles]) []
@@ -125,7 +126,7 @@ view model =
                      , userPanel model.sessionState
                      , instructionsPanel actions.address
                      ] 
-                     ++ recentRecords ++ spottedLayers ++ possiblyReplicate)
+                     ++ recentRecords ++ spottedLayers)
 
 accessToken = "pk.eyJ1IjoiZ3J1bXB5amFtZXMiLCJhIjoiNWQzZjdjMDY1YTI2MjExYTQ4ZWU4YjgwZGNmNjUzZmUifQ.BpRWJBEup08Z9DJzstigvg"
 mapBoxSource = mapBox hdpi "mapbox.run-bike-hike" accessToken
@@ -159,23 +160,6 @@ instructionsPanel addr =
            , Attr.style (absolute ++ [("bottom", "5px"), ("left", "5px")]) 
            ] 
            [ Html.text "Instructions" ]
-
-replicationSpinner : List Attribute -> Html
-replicationSpinner attrs = 
-    Html.img 
-            (  Attr.src "/ajax-loader.gif"
-            :: Attr.style [("position", "absolute"), ("right", "4px"), ("bottom", "4px")]
-            :: attrs
-            )
-            []
-
-considerReplication : (S.Address Events) -> Model -> List Html
-considerReplication addr m =
-    case m.replicationState of
-      Replicating -> [replicationSpinner []]
-      TriggerReplication payload ->
-        [replicationSpinner [on "load" (JD.succeed (Replicate payload)) (S.message addr)]]
-      ReplicatedAt t -> []
 
 spotLayers : S.Address (Events) -> S.Address () -> Model -> List Html
 spotLayers addr lrAddr model =
