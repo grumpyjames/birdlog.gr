@@ -77,7 +77,7 @@ replicationEvents =
 replicate : Model -> Maybe (List (Sequenced (Recording Sighting)))
 replicate m =
     case m.replicationState of
-      TriggerReplication payload -> Just payload
+      TriggerReplication payload -> Just (L.reverse payload)
       otherwise -> Nothing
 
 port httpReplication : Signal (Task () ())
