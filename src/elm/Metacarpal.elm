@@ -1,5 +1,4 @@
 module Metacarpal ( Event(..)
-                  , InnerEvent
                   , Metacarpal
                   , index) where
 
@@ -17,6 +16,9 @@ type Event
     = Drag (Int, Int)
     | DoubleClick (Int, Int)
     | LongPress (Int, Int)
+
+index : Metacarpal
+index = Metacarpal sgn interactions
 
 type alias Touch = 
     { 
@@ -53,9 +55,6 @@ type alias Metacarpal =
 
 metacarpal : S.Mailbox InnerEvent
 metacarpal = S.mailbox (MouseOut (0, 0))
-
-index : Metacarpal
-index = Metacarpal sgn interactions
 
 sgn : Signal Event
 sgn = 
