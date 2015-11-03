@@ -1,7 +1,7 @@
 module Tile ( render
             , Progress) where
 
-import Styles exposing (px, absolute, dimensions, noDisplay, position, zeroMargin)
+import Styles exposing (px, absolute, dimensions, noDisplay, hidden, position, zeroMargin)
 import Model exposing (Model)
 import Tuple as T
 import Types exposing (GeoPoint, MapState, Position, Tile, TileSource, TileUrl, Zoom(..))
@@ -21,7 +21,7 @@ type alias Progress = (Int, Float)
 render : S.Address Progress -> (MapState a) -> Html
 render addr map =
     let wrapper content = 
-            div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions map.windowSize) ++ zeroMargin)] content
+            div [style (hidden ++ absolute ++ (dimensions map.windowSize) ++ zeroMargin)] content
         allLayers = layers addr map
     in wrapper <| List.map oneLayer allLayers
 

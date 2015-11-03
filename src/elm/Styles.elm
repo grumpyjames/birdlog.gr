@@ -1,4 +1,4 @@
-module Styles (Style, absolute, noDisplay, px, position, dimensions, zeroMargin) where
+module Styles (Style, absolute, noDisplay, px, position, dimensions, hidden, zeroMargin) where
 
 type alias Style = List (String, String)
 
@@ -10,6 +10,9 @@ absolute = [("position", "absolute")]
 
 position : (Int, Int) -> Style
 position (x, y) = [("top", px y), ("left", px x)]
+
+hidden : Style
+hidden = [("overflow", "hidden")]
 
 dimensions : (Int, Int) -> Style
 dimensions (width, height) = [("width", px width), ("height", px height)]
