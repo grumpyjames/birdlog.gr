@@ -23,30 +23,30 @@ render addr map =
     let wrapper content = 
             div [style ([("overflow", "hidden")] ++ absolute ++ (dimensions map.windowSize) ++ zeroMargin)] content
     in case map.zoom of 
-      Constant c -> wrapper <| [oneLayer Nothing map.centre map.tileSource map.windowSize 0 c]
-      (Between x1 x2 progress) -> wrapper <| [ oneLayer Nothing map.centre map.tileSource map.windowSize (x1 - x2) x1
-                                             , oneLayer (Just addr) map.centre map.tileSource map.windowSize 0 x2]
+      Constant c -> wrapper <| [oneLayer Nothing map 0 c]
+      (Between x1 x2 progress) -> wrapper <| [ oneLayer Nothing map (x1 - x2) x1
+                                             , oneLayer (Just addr) map 0 x2]
                     
-oneLayer : Maybe (S.Address (Progress)) -> GeoPoint -> TileSource -> (Int, Int) -> Int -> Int -> Html 
-oneLayer maybAddr centre tileSource window dz zoom =
-    let requiredTiles dim = (3 * tileSource.tileSize + dim) // tileSource.tileSize
-        tileCounts = T.map requiredTiles window           
-        mapCentre = tileSource.locate (toFloat zoom) centre
+oneLayer : Maybe (S.Address (Progress)) -> MapState a -> Int -> Int -> Html 
+oneLayer maybAddr mapState dz zoom =
+    let requiredTiles dim = (3 * mapState.tileSource.tileSize + dim) // mapState.tileSource.tileSize
+        tileCounts = T.map requiredTiles mapState.windowSize           
+        mapCentre = mapState.tileSource.locate (toFloat zoom) mapState.centre
         -- scale things based on the differential zoom provided
         scl = scale dz
-        zoomWindow = T.map (scl) window
-        zoomTileSize = scl tileSource.tileSize
+        zoomWindow = T.map (scl) mapState.windowSize
+        zoomTileSize = scl mapState.tileSource.tileSize
         -- work out how far the desired centre is from the top left of the tiles we will render
         originTile = origin mapCentre.tile tileCounts
         centreTileOffset = mapCentre.tile.coordinate `T.subtract` originTile.coordinate
         relativeCentre = (T.map scl mapCentre.position.pixels) `T.add` (T.map ((*) zoomTileSize) centreTileOffset) 
         -- work out how far to shift the map div to make the desired centre the centre
-        offset = originOffset window relativeCentre
+        offset = originOffset mapState.windowSize relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         displ = M.withDefault "inline-block" <| M.map (\_ -> "none") maybAddr
         imageAttrs = Attr.style (("display", displ) :: (dimensions (zoomTileSize, zoomTileSize))) :: loadingAttrs maybAddr tileCounts zoom
         rowAttrs = [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px zoomTileSize)])]
-        mapEl = flowTable zoomTileSize (renderOneTile imageAttrs zoom tileSource.tileUrl) rowAttrs tileRows
+        mapEl = flowTable zoomTileSize (renderOneTile imageAttrs zoom mapState.tileSource.tileUrl) rowAttrs tileRows
     in applyPosition mapEl offset
 
 loadingAttrs : Maybe (S.Address (Progress)) -> (Int, Int) -> Int -> List Attribute
