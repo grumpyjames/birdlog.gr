@@ -30,10 +30,10 @@ layers addr m =
     let scale dz a = if dz > 0 then a // (2 ^ dz) else a * (2 ^ (-1 * dz))
     in case m.zoom of
          Constant c -> 
-             [ ZoomLayer c (scale 0) Nothing m.tileSource m.windowSize m.centre ]
+             [ ZoomLayer c (scale 0) Nothing m.tileSource m.tileSource.tileSize m.windowSize m.centre ]
          Between a b progress -> 
-             [ ZoomLayer a (scale (a - b)) Nothing m.tileSource m.windowSize m.centre
-             , ZoomLayer b (scale 0) (Just addr) m.tileSource m.windowSize m.centre
+             [ ZoomLayer a (scale (a - b)) Nothing m.tileSource (scale (a - b) m.tileSource.tileSize) m.windowSize m.centre
+             , ZoomLayer b (scale 0) (Just addr) m.tileSource m.tileSource.tileSize m.windowSize m.centre
              ]
                                                  
 type alias ZoomLayer = 
@@ -42,6 +42,8 @@ type alias ZoomLayer =
     , scaler       : Int -> Int
     , loadAddress  : Maybe (S.Address (Progress))
     , tileSource   : TileSource
+    -- prescaled
+    , tileSize     : Int
     , windowSize   : (Int, Int)
     , centre       : GeoPoint
     }
@@ -51,33 +53,33 @@ oneLayer zoomLayer =
     let 
         -- the precise tile (+ pixel within that tile) location of this geopoint
         mapCentre = zoomLayer.tileSource.locate (toFloat zoomLayer.zoomToRender) zoomLayer.centre
-        -- work out how far the desired centre is from the top left of the tiles we will render
+        -- to cover dim pixels, how many tiles should we use?            
         requiredTiles dim = (3 * zoomLayer.tileSource.tileSize + dim) // zoomLayer.tileSource.tileSize
         tileCounts = T.map requiredTiles zoomLayer.windowSize
+        -- what tile should be placed in the top left hand corner?
         originTile = origin mapCentre.tile tileCounts
         -- in tile units, how far is the centre tile from the origin?             
         centreTileOffset = mapCentre.tile.coordinate `T.subtract` originTile.coordinate
-        -- scale things based on the differential zoom provided
-        zoomTileSize = zoomLayer.scaler zoomLayer.tileSource.tileSize
         -- this is actually the scaled centre position
-        relativeCentre = (T.map zoomLayer.scaler mapCentre.position.pixels) `T.add` (T.map ((*) zoomTileSize) centreTileOffset) 
+        relativeCentre = (T.map zoomLayer.scaler mapCentre.position.pixels) `T.add` (T.map ((*) zoomLayer.tileSize) centreTileOffset) 
         -- work out how far to shift the map div to make the desired centre the centre
         offset = originOffset zoomLayer.windowSize relativeCentre
+        -- a 2d array of the tiles we want to render
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
         progressIncrement = 1.0 / (toFloat (T.combine (*) tileCounts))
-        imageAttrs = imageAttributes zoomLayer.loadAddress progressIncrement zoomLayer.zoomToRender zoomTileSize
-        rowAttrs = [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px zoomTileSize)])]
-        mapEl = flowTable zoomTileSize (renderOneTile imageAttrs zoomLayer.zoomToRender zoomLayer.tileSource.tileUrl) rowAttrs tileRows
+        imageAttrs = imageAttributes zoomLayer progressIncrement
+        -- must we specify the height?
+        rowAttrs = [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px zoomLayer.tileSize)])]
+        mapEl = flowTable (renderOneTile imageAttrs zoomLayer.zoomToRender zoomLayer.tileSource.tileUrl) rowAttrs tileRows
     in applyPosition mapEl offset
 
-
-imageAttributes : Maybe (S.Address (Progress)) -> Float -> Int -> Int -> List Attribute
-imageAttributes maybeAddress progressIncrement zoom tileSize =
-    let commonAttributes = dimensions (tileSize, tileSize)
-    in case maybeAddress of
+imageAttributes : ZoomLayer -> Float -> List Attribute
+imageAttributes zoomLayer progressIncrement =
+    let commonAttributes = dimensions (zoomLayer.tileSize, zoomLayer.tileSize)
+    in case zoomLayer.loadAddress of
          Just addr -> 
              [ Attr.style (("display", "none") :: commonAttributes)
-             , on "load" (J.succeed (zoom, progressIncrement)) (S.message addr)
+             , on "load" (J.succeed (zoomLayer.zoomToRender, progressIncrement)) (S.message addr)
              ]
          Nothing ->
              [ Attr.style (("display", "inline-block") :: commonAttributes) ]
@@ -104,8 +106,8 @@ originOffset window centreOffset =
     let halfWindow = T.map (\pix -> pix // 2) window
     in halfWindow `T.subtract` centreOffset
 
-flowTable : Int -> (a -> Html) -> List Attribute -> Array (Array a) -> Html
-flowTable tileSize renderer rowAttrs arr = 
+flowTable : (a -> Html) -> List Attribute -> Array (Array a) -> Html
+flowTable renderer rowAttrs arr = 
     let row els = Html.div rowAttrs (A.toList <| A.map renderer els)
     in div [] (A.toList <| A.map row arr)
 
