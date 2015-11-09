@@ -48,34 +48,40 @@ type alias ZoomLayer =
 
 oneLayer : ZoomLayer -> Html 
 oneLayer zoomLayer =
-    let requiredTiles dim = (3 * zoomLayer.tileSource.tileSize + dim) // zoomLayer.tileSource.tileSize
-        tileCounts = T.map requiredTiles zoomLayer.windowSize           
+    let 
+        -- the precise tile (+ pixel within that tile) location of this geopoint
         mapCentre = zoomLayer.tileSource.locate (toFloat zoomLayer.zoomToRender) zoomLayer.centre
-        -- scale things based on the differential zoom provided
-        zoomWindow = T.map (zoomLayer.scaler) zoomLayer.windowSize
-        zoomTileSize = zoomLayer.scaler zoomLayer.tileSource.tileSize
         -- work out how far the desired centre is from the top left of the tiles we will render
+        requiredTiles dim = (3 * zoomLayer.tileSource.tileSize + dim) // zoomLayer.tileSource.tileSize
+        tileCounts = T.map requiredTiles zoomLayer.windowSize
         originTile = origin mapCentre.tile tileCounts
+        -- in tile units, how far is the centre tile from the origin?             
         centreTileOffset = mapCentre.tile.coordinate `T.subtract` originTile.coordinate
+        -- scale things based on the differential zoom provided
+        zoomTileSize = zoomLayer.scaler zoomLayer.tileSource.tileSize
+        -- this is actually the scaled centre position
         relativeCentre = (T.map zoomLayer.scaler mapCentre.position.pixels) `T.add` (T.map ((*) zoomTileSize) centreTileOffset) 
         -- work out how far to shift the map div to make the desired centre the centre
         offset = originOffset zoomLayer.windowSize relativeCentre
         tileRows = rows (curry Tile) <| T.merge range originTile.coordinate tileCounts
-        displ = M.withDefault "inline-block" <| M.map (\_ -> "none") zoomLayer.loadAddress
-        imageAttrs = Attr.style (("display", displ) :: (dimensions (zoomTileSize, zoomTileSize))) :: loadingAttrs zoomLayer.loadAddress tileCounts zoomLayer.zoomToRender
+        progressIncrement = 1.0 / (toFloat (T.combine (*) tileCounts))
+        imageAttrs = imageAttributes zoomLayer.loadAddress progressIncrement zoomLayer.zoomToRender zoomTileSize
         rowAttrs = [style (zeroMargin ++ [("white-space", "nowrap"), ("height", px zoomTileSize)])]
         mapEl = flowTable zoomTileSize (renderOneTile imageAttrs zoomLayer.zoomToRender zoomLayer.tileSource.tileUrl) rowAttrs tileRows
     in applyPosition mapEl offset
 
-loadingAttrs : Maybe (S.Address (Progress)) -> (Int, Int) -> Int -> List Attribute
-loadingAttrs maybAddr tileCounts zoom = M.withDefault [] <| 
-                                        M.map (\addr -> 
-                                               [ onLoad addr zoom (1.0 / (toFloat (T.combine (*) tileCounts))) ]
-                                              ) maybAddr
 
-onLoad : S.Address (Progress) -> Int -> Float -> Attribute
-onLoad addr zoom prog = on "load" (J.succeed (zoom, prog)) (S.message addr)
-
+imageAttributes : Maybe (S.Address (Progress)) -> Float -> Int -> Int -> List Attribute
+imageAttributes maybeAddress progressIncrement zoom tileSize =
+    let commonAttributes = dimensions (tileSize, tileSize)
+    in case maybeAddress of
+         Just addr -> 
+             [ Attr.style (("display", "none") :: commonAttributes)
+             , on "load" (J.succeed (zoom, progressIncrement)) (S.message addr)
+             ]
+         Nothing ->
+             [ Attr.style (("display", "inline-block") :: commonAttributes) ]
+ 
 applyPosition : Html -> (Int, Int) -> Html
 applyPosition el pixels =
     let attr = style ((position pixels) ++ absolute) 
